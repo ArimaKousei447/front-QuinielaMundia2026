@@ -1,0 +1,129 @@
+<div class="page-shell">
+  <h1>Quiniela de Clasificados</h1>
+  <p *ngIf="userName()" class="welcome-text">Bienvenido, {{ userName() }}.</p>
+
+  <div *ngIf="loading()" class="status-message">Cargando equipos...</div>
+  <div *ngIf="error()" class="status-message error">{{ error() }}</div>
+
+  <nav class="tabs">
+    <button [class.active]="activeTab() === 'fases'" (click)="activeTab.set('fases')">Predicción por Fases</button>
+    <button [class.active]="activeTab() === 'mis4'" (click)="activeTab.set('mis4')">Mis 4 Selecciones</button>
+  </nav>
+
+  <!-- Pestaña: Predicción por Fases -->
+  <section *ngIf="activeTab() === 'fases'" class="tab-content">
+    <div class="fases-selector">
+      <div *ngFor="let fase of fases()" class="fase-chip" [class.selected]="isFaseSelected(fase)" (click)="selectFase(fase)">
+        {{ $any(fase).Nombre ?? $any(fase).nombre ?? $any(fase).name ?? ($any(fase).IdFase ?? $any(fase).id) }}
+      </div>
+      <div class="modalidad-badge" *ngIf="selectedModalidadId() !== null">
+        <span [class.closed]="modalidadIsClosed(selectedModalidadId())" [class.open]="!modalidadIsClosed(selectedModalidadId())">
+          {{ modalidadIsClosed(selectedModalidadId()) ? 'Cerrada' : 'Abierta' }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Si la modalidad/fase seleccionada es Grupos (1) mostramos la vista existente -->
+    <div *ngIf="selectedModalidadId() === 1">
+      <div *ngIf="!loading() && groupNames().length === 0" class="status-message">No se encontraron equipos.</div>
+
+      <section *ngFor="let group of groupNames()" class="group-card">
+        <div class="group-header">
+          <div>
+            <h2>Grupo: {{ group }}</h2>
+            <p class="group-subtitle">Selecciona hasta 2 clasificados por grupo</p>
+          </div>
+          <div class="group-count">{{ selectedCount(group) }}/2 seleccionados</div>
+        </div>
+
+        <div class="teams-grid">
+          <button
+            *ngFor="let equipo of grupos()[group]"
+            type="button"
+            class="team-card"
+            [class.selected]="isSelected(group, equipo.id)"
+            (click)="toggleTeam(group, equipo.id)"
+          >
+            <div class="team-flag" *ngIf="equipo.flagUrl || $any(equipo)['flag']">
+              <img [src]="equipo.flagUrl || $any(equipo)['flag']" [alt]="teamLabel(equipo)" />
+            </div>
+            <div class="team-info">
+              <div class="team-name">{{ teamLabel(equipo) }}</div>
+            </div>
+            <span
+              class="third-toggle"
+              [class.selected]="isThirdSelected(equipo.id)"
+              (click)="$event.stopPropagation(); toggleThird(group, equipo.id)"
+              [attr.aria-disabled]="isSelected(group, equipo.id) || (thirdCount() >= 8 && !isThirdSelected(equipo.id))"
+            >
+              <span *ngIf="isThirdSelected(equipo.id)">✓ Tercero</span>
+              <span *ngIf="!isThirdSelected(equipo.id)">3º</span>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <div class="actions">
+        <div class="thirds-counter">Mejores terceros: {{ thirdCount() }}/8</div>
+        <button type="button" (click)="sendFasePredicciones()" [disabled]="!canSendFase() || sending() || modalidadIsClosed(selectedModalidadId())">
+          <span *ngIf="sending()">Enviando...</span>
+          <span *ngIf="!sending()">Enviar predicciones</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Bracket para fases eliminatorias -->
+    <div *ngIf="selectedModalidadId() !== 1">
+      <div *ngIf="partidos().length === 0" class="status-message">Selecciona una fase para ver los partidos.</div>
+      <div class="bracket" *ngIf="partidos().length > 0">
+        <svg class="bracket-svg" preserveAspectRatio="none"></svg>
+        <div class="round-column" *ngFor="let round of (bracketRounds || []); let rIndex = index">
+          <div *ngFor="let match of round; let mIndex = index" class="match-card" [attr.data-round]="rIndex" [attr.data-match]="mIndex" id="match-{{rIndex}}-{{mIndex}}">
+            <div class="team" [class.winner]="(rIndex===0 && winners()[match?.matchId]===match?.teamA?.id) || (rIndex>0 && (match?.teamA && match?.teamA.id && ((bracketRounds[rIndex+1] && bracketRounds[rIndex+1][floorDiv(mIndex,2)]?.teamA?.id===match.teamA.id) || false)))">
+              <button *ngIf="match?.teamA" type="button" (click)="selectWinnerRound(rIndex, mIndex, match.teamA)">{{ match.teamA.name }}</button>
+              <div *ngIf="!match?.teamA">—</div>
+            </div>
+            <div class="team" [class.winner]="(rIndex===0 && winners()[match?.matchId]===match?.teamB?.id) || (rIndex>0 && (match?.teamB && match?.teamB.id && ((bracketRounds[rIndex+1] && bracketRounds[rIndex+1][floorDiv(mIndex,2)]?.teamA?.id===match.teamB.id) || false)))">
+              <button *ngIf="match?.teamB" type="button" (click)="selectWinnerRound(rIndex, mIndex, match.teamB)">{{ match.teamB.name }}</button>
+              <div *ngIf="!match?.teamB">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" (click)="sendFasePredicciones()" [disabled]="!canSendFase() || sending() || modalidadIsClosed(selectedModalidadId())">
+          <span *ngIf="sending()">Enviando...</span>
+          <span *ngIf="!sending()">Enviar predicciones</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pestaña: Mis 4 Selecciones -->
+  <section *ngIf="activeTab() === 'mis4'" class="tab-content">
+    <div class="four-selector-header">Selecciona exactamente 4 equipos ({{ selectedFour().length }}/4)</div>
+    <div class="teams-grid">
+      <button
+        *ngFor="let equipo of equipos()"
+        type="button"
+        class="team-card"
+        [class.selected]="selectedFour().includes(equipo.id)"
+        (click)="toggleFour(equipo.id)"
+        [disabled]="modalidadIsClosed(9) || (!selectedFour().includes(equipo.id) && selectedFour().length >= 4)"
+      >
+        <div class="team-flag" *ngIf="equipo.flagUrl || $any(equipo)['flag']">
+          <img [src]="equipo.flagUrl || $any(equipo)['flag']" [alt]="teamLabel(equipo)" />
+        </div>
+        <div class="team-name">{{ teamLabel(equipo) }}</div>
+      </button>
+    </div>
+
+    <div class="actions">
+      <button type="button" (click)="sendMis4Predicciones()" [disabled]="selectedFour().length !== 4 || sending() || modalidadIsClosed(9)">
+        <span *ngIf="sending()">Enviando...</span>
+        <span *ngIf="!sending()">Enviar Mis 4 Selecciones</span>
+      </button>
+    </div>
+  </section>
+</div>
