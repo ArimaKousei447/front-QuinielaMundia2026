@@ -3,11 +3,13 @@
   <p *ngIf="userName()" class="welcome-text">Bienvenido, {{ userName() }}.</p>
 
   <div *ngIf="loading()" class="status-message">Cargando equipos...</div>
+  <div *ngIf="success()" class="status-message success">{{ success() }}</div>
   <div *ngIf="error()" class="status-message error">{{ error() }}</div>
 
   <nav class="tabs">
     <button [class.active]="activeTab() === 'fases'" (click)="activeTab.set('fases')">Predicción por Fases</button>
     <button [class.active]="activeTab() === 'mis4'" (click)="activeTab.set('mis4')">Mis 4 Selecciones</button>
+    <button [class.active]="activeTab() === 'clasificacion'" (click)="activeTab.set('clasificacion')">Tabla de Clasificaciones</button>
   </nav>
 
   <!-- Pestaña: Predicción por Fases -->
@@ -100,6 +102,36 @@
     </div>
   </section>
 
+  <!-- Pestaña: Clasificacion -->
+  <section *ngIf="activeTab() === 'clasificacion'" class="tab-content">
+    <div *ngIf="clasificacion().length === 0" class="status-message">No hay clasificaciones disponibles.</div>
+
+    <table *ngIf="clasificacion().length > 0" class="clasificacion-table">
+      <thead>
+        <tr>
+          <th>Posición</th>
+          <th>Nombre</th>
+          <th>Puntos Totales</th>
+          <th>Puntos Grupos</th>
+          <th>Puntos Partidos</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of clasificacion()">
+          <td>{{ row.Posicion ?? row.posicion }}</td>
+          <td>{{ row.Nombre ?? row.nombre ?? row.Name ?? '' }}</td>
+          <td>{{ row.PuntosTotales ?? row.puntosTotales ?? 0 }}</td>
+          <td>{{ row.PuntosGrupos ?? row.puntosGrupos ?? 0 }}</td>
+          <td>{{ row.PuntosPartidos ?? row.puntosPartidos ?? 0 }}</td>
+          <td>
+            <button type="button" (click)="openUserPredicciones(row)">Ver selecciones</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
   <!-- Pestaña: Mis 4 Selecciones -->
   <section *ngIf="activeTab() === 'mis4'" class="tab-content">
     <div class="four-selector-header">Selecciona exactamente 4 equipos ({{ selectedFour().length }}/4)</div>
@@ -126,4 +158,79 @@
       </button>
     </div>
   </section>
+</div>
+
+<!-- Modal de predicciones de usuario -->
+<div class="modal-backdrop" *ngIf="showModalPredicciones()">
+  <div class="modal">
+    <header class="modal-header">
+      <h3>Selecciones de {{ modalUser()?.Nombre ?? modalUser()?.nombre ?? modalUser()?.Name ?? '' }}</h3>
+      <button type="button" class="close" (click)="closeModalPredicciones()">✕</button>
+    </header>
+
+    <div class="modal-body">
+      <div *ngIf="modalLoading()" class="status-message">Cargando predicciones...</div>
+      <div *ngIf="modalError()" class="status-message error">{{ modalError() }}</div>
+
+      <section *ngIf="!modalLoading()">
+        <div class="modal-summary">
+          <span>{{ modalPredEquipos().length }} modalidades de equipos</span>
+          <span>{{ modalPredPartidos().length }} predicciones de partidos</span>
+        </div>
+
+        <h4>Predicciones por modalidad (equipos)</h4>
+        <div *ngIf="modalPredEquipos().length === 0" class="status-message">No hay predicciones de equipos para este usuario.</div>
+        <div *ngFor="let m of modalPredEquipos()" class="modalidad-card">
+          <div class="modalidad-header">
+            <div>
+              <strong>{{ m.NombreModalidad ?? m.nombreModalidad ?? m.Nombre ?? '' }}</strong>
+              <div class="modalidad-meta">Cierre: {{ m.fechaDeCierre ?? '—' }}</div>
+            </div>
+            <span class="status" [class.closed]="isFechaCerrada(m.fechaDeCierre)" [class.open]="!isFechaCerrada(m.fechaDeCierre)">
+              {{ isFechaCerrada(m.fechaDeCierre) ? 'Cerrada' : 'Abierta' }}
+            </span>
+          </div>
+
+          <div *ngIf="isFechaCerrada(m.fechaDeCierre); else openEquipoBlock" class="modalidad-content">
+            <ul>
+              <li *ngFor="let e of m.equipos" class="modal-equipo-item">
+                <span>{{ e.NombreEquipo ?? e.Nombre ?? e.name }}</span>
+                <small>Puntos: {{ e.PuntosGanados ?? 0 }}</small>
+              </li>
+            </ul>
+          </div>
+          <ng-template #openEquipoBlock>
+            <div class="status-message">Esta modalidad aún está abierta. No se pueden ver las selecciones.</div>
+          </ng-template>
+        </div>
+
+        <h4>Predicciones por partido</h4>
+        <div *ngIf="modalPredPartidos().length === 0" class="status-message">No hay predicciones de partidos para este usuario.</div>
+        <div *ngFor="let p of modalPredPartidos()" class="modalidad-card">
+          <div class="modalidad-header">
+            <div>
+              <strong>{{ p.NombreFase ?? p.NombreModalidad ?? 'Partido' }}</strong>
+              <div class="modalidad-meta">{{ p.Equipo1 }} vs {{ p.Equipo2 }}</div>
+            </div>
+            <span class="status" [class.closed]="isPredictionVisibleByModalidad(p)" [class.open]="!isPredictionVisibleByModalidad(p)">
+              {{ isPredictionVisibleByModalidad(p) ? 'Cerrada' : 'Abierta' }}
+            </span>
+          </div>
+
+          <div *ngIf="isPredictionVisibleByModalidad(p); else openPartidoBlock" class="modalidad-content">
+            <div class="modal-partido-row">
+              <span>Predicción: {{ p.PrediccionGanador ?? p.Prediccion ?? 'N/A' }}</span>
+              <span>Resultado real: {{ p.GanadorReal ?? 'Pendiente' }}</span>
+            </div>
+            <div class="modal-partido-row">
+              <span>Puntos ganados: {{ p.PuntosGanados ?? 0 }}</span>
+            </div>
+          </div>
+          <ng-template #openPartidoBlock>
+            <div class="status-message">Esta modalidad aún está abierta. No se pueden ver las selecciones de partido.</div>
+          </ng-template>
+        </div>
+      </section>
+    </div>
+  </div>
 </div>

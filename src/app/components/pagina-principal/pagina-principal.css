@@ -28,9 +28,10 @@ h1 {
   color: #1f2937;
 }
 
-.error {
-  background: #ffe6e6;
-  color: #8c1c1c;
+.success {
+  background: #d9f7e4;
+  color: #065f46;
+  border: 1px solid #10b981;
 }
 
 .group-card {
@@ -298,3 +299,50 @@ h1 {
   .bracket { grid-template-columns: repeat(1, 1fr); }
   .teams-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Clasificación table */
+.clasificacion-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+.clasificacion-table th, .clasificacion-table td {
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(15,23,42,0.06);
+}
+.clasificacion-table th { font-weight: 700; }
+.clasificacion-table tbody tr:hover { background: rgba(96,165,250,0.04); }
+
+/* Modal styles */
+.modal-backdrop {
+  position: fixed;
+  left: 0; top: 0; right: 0; bottom: 0;
+  background: rgba(2,6,23,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.modal {
+  width: min(960px, 96%);
+  max-height: 86vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 12px;
+  padding: 0.8rem;
+}
+.modal-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding-bottom:0.75rem; border-bottom: 1px solid rgba(15,23,42,0.08); }
+ .modal-body { padding: 0.8rem 0 0; }
+ .modal-summary { display:flex; gap:1.2rem; flex-wrap:wrap; margin-bottom:1rem; color:#334155; font-size:0.95rem; }
+ .modal-summary span { background:#f8fafc; padding:0.5rem 0.75rem; border-radius:999px; border:1px solid rgba(15,23,42,0.08); }
+ .modalidad-card { margin-bottom:1rem; padding:1rem; border-radius:18px; background:#f8fafc; border:1px solid rgba(15,23,42,0.08); }
+ .modalidad-header { display:flex; gap:1rem; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+ .modalidad-header strong { font-size:1rem; color:#0f1724; }
+ .modalidad-meta { color:#475569; font-size:0.92rem; margin-top:0.3rem; }
+ .modalidad-content { margin-top:0.85rem; }
+ .modal-equipo-item { display:flex; justify-content:space-between; gap:1rem; padding:0.55rem 0; border-bottom:1px solid rgba(15,23,42,0.06); }
+ .modal-equipo-item:last-child { border-bottom:none; }
+ .modal-partido-row { display:flex; justify-content:space-between; gap:1rem; padding:0.4rem 0; }
+ .modal-partido-row span { color:#334155; }
+ .close { background:transparent; border:none; font-size:1.3rem; cursor:pointer; color:#475569; }

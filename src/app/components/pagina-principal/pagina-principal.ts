@@ -12,6 +12,7 @@ interface Prediccion {
 interface PartidoPrediccion {
   IdPartido: number;
   IdEquipoGanador: number;
+  IdModalidad: number;
 }
 
 export interface Fase {
@@ -37,7 +38,7 @@ export class PaginaPrincipal {
   fases = signal<unknown[]>([]);
   modalidades = signal<unknown[]>([]);
   // UI state
-  activeTab = signal<'fases' | 'mis4'>('fases');
+  activeTab = signal<'fases' | 'mis4' | 'clasificacion'>('fases');
   selectedFase: any = signal(null as any);
   selectedModalidadId = signal<number | null>(null);
   partidos = signal<any[]>([]);
@@ -54,6 +55,17 @@ export class PaginaPrincipal {
   userName = signal<string | null>(null);
   userId = signal<number | null>(null);
   userRole = signal<number | null>(null);
+
+  // Clasificacion
+  clasificacion = signal<any[]>([]);
+
+  // Modal para ver predicciones de un usuario
+  showModalPredicciones = signal(false);
+  modalUser = signal<any | null>(null);
+  modalPredEquipos = signal<any[]>([]);
+  modalPredPartidos = signal<any[]>([]);
+  modalLoading = signal(false);
+  modalError = signal<string | undefined>(undefined);
 
   grupos = computed(() => {
     const grouped: Record<string, Equipo[]> = {};
@@ -86,7 +98,62 @@ export class PaginaPrincipal {
   constructor() {
     this.loadUserInfo();
     this.loadEquipos();
+    this.loadClasificacion();
     window.addEventListener('resize', this.resizeHandler);
+  }
+
+  loadClasificacion(): void {
+    this.servicio.getClasificacion().subscribe({
+      next: (c: any) => this.clasificacion.set(Array.isArray(c) ? c : []),
+      error: () => this.clasificacion.set([]),
+    });
+  }
+
+  openUserPredicciones(user: any): void {
+    const userId = user?.IdUsuario ?? user?.id ?? user?.Id ?? null;
+    if (!userId) return;
+    this.modalLoading.set(true);
+    this.modalError.set(undefined);
+    this.servicio.getPrediccionesUsuario(userId).subscribe({
+      next: (res: any) => {
+        const data = res?.data ?? { prediccionesEquipos: [], prediccionesPartidos: [] };
+        this.modalPredEquipos.set(Array.isArray(data.prediccionesEquipos) ? data.prediccionesEquipos : []);
+        this.modalPredPartidos.set(Array.isArray(data.prediccionesPartidos) ? data.prediccionesPartidos : []);
+        this.modalUser.set(user);
+        this.showModalPredicciones.set(true);
+        this.modalLoading.set(false);
+      },
+      error: (err: any) => {
+        this.modalLoading.set(false);
+        this.modalError.set(err?.error?.message ?? 'Error al cargar predicciones.');
+      },
+    });
+  }
+
+  closeModalPredicciones(): void {
+    this.showModalPredicciones.set(false);
+    this.modalUser.set(null);
+    this.modalPredEquipos.set([]);
+    this.modalPredPartidos.set([]);
+    this.modalError.set(undefined);
+  }
+
+  isFechaCerrada(fecha?: string | null): boolean {
+    if (!fecha) return false;
+    try {
+      return new Date() > new Date(fecha);
+    } catch {
+      return false;
+    }
+  }
+
+  isPredictionVisibleByModalidad(item: any): boolean {
+    if (!item) return false;
+    if (item.fechaDeCierre) {
+      return this.isFechaCerrada(item.fechaDeCierre);
+    }
+    const modalidadId = this.extractId(item, ['IdModalidad', 'id', 'Id']);
+    return this.modalidadIsClosed(Number(modalidadId));
   }
 
   loadUserInfo(): void {
@@ -427,7 +494,7 @@ export class PaginaPrincipal {
       const partidoKey = String(partidoId);
       const winner = winners[partidoKey];
       if (winner !== undefined && winner !== null) {
-        matchPredicciones.push({ IdPartido: Number(partidoId), IdEquipoGanador: Number(winner) });
+        matchPredicciones.push({ IdPartido: Number(partidoId), IdEquipoGanador: Number(winner), IdModalidad: Number(modId) });
       }
     }
 

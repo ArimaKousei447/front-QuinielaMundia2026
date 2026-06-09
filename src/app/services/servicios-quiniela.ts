@@ -52,8 +52,8 @@ export class ServiciosQuiniela {
     return teamName.substring(0, 2).toLowerCase();
   }
 
-  private getFlagUrl(teamName: string): string {
-    const code = this.getCountryCode(teamName);
+  private getFlagUrl(teamName: string, isoCode?: string): string {
+    const code = isoCode ? String(isoCode).toLowerCase().trim() : this.getCountryCode(teamName);
     // Usar la API de flagcdn.com para obtener las banderas
     return `https://flagcdn.com/w320/${code}.png`;
   }
@@ -73,18 +73,18 @@ registrarPredicciones(
 }
 
   registrarPrediccionesPartidos(
-    predicciones: { IdPartido: number; IdEquipoGanador: number }[],
-    IdUsuario: string | number = 1,
-    IdModalidad: string | number = 1
-  ): Observable<unknown> {
-    const body = {
-      IdUsuario,
-      IdModalidad,
-      predicciones
-    };
+  predicciones: { IdPartido: number; IdEquipoGanador: number; IdModalidad: number }[],
+  IdUsuario: string | number = 1,
+  IdModalidad: string | number = 1
+): Observable<unknown> {
+  const body = {
+    IdUsuario,
+    IdModalidad,
+    predicciones
+  };
 
-    return this.http.post(`${this.baseUrl}/prediccionesPartidos`, body);
-  }
+  return this.http.post(`${this.baseUrl}/prediccionesPartidos`, body);
+}
 
   getFases(): Observable<unknown> {
     return this.http.get<unknown>(`${this.baseUrl}/fases`).pipe(
@@ -138,17 +138,37 @@ registrarPredicciones(
           return payload.map((item) => {
             const row = item as Record<string, unknown>;
             const teamName = (row['Nombre'] ?? row['nombre'] ?? row['Name'] ?? row['name'] ?? '') as string;
+            const codigoISO = (row['CodigoISO'] ?? row['codigoISO'] ?? row['CodigoIso'] ?? row['codigoIso']) as string;
             return {
               id: row['IdEquipo'] ?? row['id'] ?? row['Id'] ?? row['ID'] ?? '',
               name: teamName,
               grupo: (row['Grupo'] ?? row['grupo'] ?? row['Group'] ?? row['group']) as string,
-              flagUrl: this.getFlagUrl(teamName),
+              flagUrl: this.getFlagUrl(teamName, codigoISO),
               ...row,
             } as Equipo;
           });
         }
 
         return [];
+      })
+    );
+  }
+
+  getClasificacion(): Observable<any[]> {
+    return this.http.get<unknown>(`${this.baseUrl}/clasificacion`).pipe(
+      map((res) => {
+        if (Array.isArray(res)) return res as any[];
+        if (res && typeof res === 'object' && (res as any).data) return (res as any).data;
+        return [];
+      })
+    );
+  }
+
+  getPrediccionesUsuario(IdUsuario: string | number): Observable<any> {
+    return this.http.get<unknown>(`${this.baseUrl}/prediccionesUsuario/${IdUsuario}`).pipe(
+      map((res) => {
+        if (res && typeof res === 'object' && (res as any).data) return (res as any);
+        return { data: { prediccionesEquipos: [], prediccionesPartidos: [] } };
       })
     );
   }
