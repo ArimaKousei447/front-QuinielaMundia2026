@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { Equipo, ServiciosQuiniela } from '../../services/servicios-quiniela';
 
@@ -33,6 +34,7 @@ export interface Fase {
 export class PaginaPrincipal {
   private readonly servicio = inject(ServiciosQuiniela);
   private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
 
   equipos = signal<Equipo[]>([]);
   fases = signal<unknown[]>([]);
@@ -51,7 +53,8 @@ export class PaginaPrincipal {
   selectedTeams = signal<Record<string, Array<string | number>>>({});
   sending = signal(false);
   success = signal<string | undefined>(undefined);
-  selectedThirds = signal<Array<string | number>>([]);
+  notification = signal<{ type: 'success' | 'error'; message: string } | null>(null);
+  selectedThirds = signal<Record<string, string | number>>({});
   userName = signal<string | null>(null);
   userId = signal<number | null>(null);
   userRole = signal<number | null>(null);
@@ -91,9 +94,12 @@ export class PaginaPrincipal {
     for (const g of groups) {
       const count = (this.selectedTeams()[g] ?? []).length;
       if (count !== 2) return false;
+      if (!this.groupHasThird(g)) return false;
     }
-    return this.selectedThirds().length === 8;
+    return this.thirdCount() === groups.length;
   });
+
+  private notificationTimer: number | null = null;
 
   constructor() {
     this.loadUserInfo();
@@ -162,6 +168,38 @@ export class PaginaPrincipal {
     this.userRole.set(this.auth.getUserRole());
   }
 
+  logout(): void {
+    this.auth.logout();
+    this.router.navigateByUrl('/');
+  }
+
+  showNotification(type: 'success' | 'error', message: string): void {
+    this.notification.set({ type, message });
+    if (this.notificationTimer) {
+      window.clearTimeout(this.notificationTimer);
+    }
+    this.notificationTimer = window.setTimeout(() => {
+      this.notification.set(null);
+      this.notificationTimer = null;
+    }, 3000);
+  }
+
+  groupHasThird(group: string): boolean {
+    return this.selectedThirds()[group] !== undefined && this.selectedThirds()[group] !== null;
+  }
+
+  selectedThirdOfGroup(group: string): string | number | null {
+    return this.selectedThirds()[group] ?? null;
+  }
+
+  canToggleThird(group: string, teamId: string | number): boolean {
+    if (this.isSelected(group, teamId)) return false;
+    const currentGroupThird = this.selectedThirdOfGroup(group);
+    if (currentGroupThird === teamId) return true;
+    if (currentGroupThird !== null) return false;
+    return this.thirdCount() < 8;
+  }
+
   getGrupoName(equipo: Equipo): string {
     return (
       equipo.grupo ??
@@ -197,7 +235,9 @@ export class PaginaPrincipal {
         this.loading.set(false);
       },
       error: () => {
-        this.error.set('No se pudieron cargar los equipos. Revisa la conexión con la API.');
+        const message = 'No se pudieron cargar los equipos. Revisa la conexión con la API.';
+        this.error.set(message);
+        this.showNotification('error', message);
         this.loading.set(false);
       },
     });
@@ -426,7 +466,9 @@ export class PaginaPrincipal {
       return;
     }
     if (current.length >= 4) {
-      this.error.set('Sólo puedes seleccionar 4 equipos.');
+      const message = 'Sólo puedes seleccionar 4 equipos.';
+      this.error.set(message);
+      this.showNotification('error', message);
       return;
     }
     current.push(teamId);
@@ -458,7 +500,7 @@ export class PaginaPrincipal {
           });
         }
       }
-      for (const id of this.selectedThirds()) {
+      for (const id of Object.values(this.selectedThirds())) {
         const exists = predicciones.some((p) => Number(p.IdEquipo) === Number(id));
         if (!exists) {
           predicciones.push({
@@ -506,10 +548,13 @@ export class PaginaPrincipal {
       next: () => {
         this.sending.set(false);
         this.success.set('Predicciones enviadas correctamente.');
+        this.showNotification('success', 'Predicciones enviadas correctamente.');
       },
       error: (err: any) => {
         this.sending.set(false);
-        this.error.set(err?.error?.message ?? 'Error al enviar predicciones.');
+        const message = err?.error?.message ?? 'Error al enviar predicciones.';
+        this.error.set(message);
+        this.showNotification('error', message);
       },
     });
   }
@@ -517,7 +562,9 @@ export class PaginaPrincipal {
   sendMis4Predicciones(): void {
     if (this.modalidadIsClosed(9)) return;
     if ((this.selectedFour().length ?? 0) !== 4) {
-      this.error.set('Selecciona exactamente 4 equipos.');
+      const message = 'Selecciona exactamente 4 equipos.';
+      this.error.set(message);
+      this.showNotification('error', message);
       return;
     }
     const predicciones: Prediccion[] = this.selectedFour().map((id) => ({ IdEquipo: Number(id), IdFase: this.DEFAULT_ID_FASE, EsMejorTercero: 0 }));
@@ -529,10 +576,13 @@ export class PaginaPrincipal {
       next: () => {
         this.sending.set(false);
         this.success.set('Mis 4 selecciones enviadas correctamente.');
+        this.showNotification('success', 'Mis 4 selecciones enviadas correctamente.');
       },
       error: (err: any) => {
         this.sending.set(false);
-        this.error.set(err?.error?.message ?? 'Error al enviar predicciones.');
+        const message = err?.error?.message ?? 'Error al enviar predicciones.';
+        this.error.set(message);
+        this.showNotification('error', message);
       },
     });
   }
@@ -554,34 +604,34 @@ export class PaginaPrincipal {
     current[group] = selected;
     this.selectedTeams.set(current);
     // Si este equipo estaba marcado como mejor tercero, quitarlo
-    const thirds = [...this.selectedThirds()];
-    const tIdx = thirds.indexOf(teamId);
-    if (tIdx >= 0) {
-      thirds.splice(tIdx, 1);
+    const thirds = { ...this.selectedThirds() };
+    if (thirds[group] === teamId) {
+      delete thirds[group];
       this.selectedThirds.set(thirds);
     }
   }
 
   toggleThird(group: string, teamId: string | number): void {
     if (this.isSelected(group, teamId)) return;
-    const current = [...this.selectedThirds()];
-    const idx = current.indexOf(teamId);
-    if (idx >= 0) {
-      current.splice(idx, 1);
+    const current = { ...this.selectedThirds() };
+    const groupThird = current[group];
+    if (groupThird === teamId) {
+      delete current[group];
       this.selectedThirds.set(current);
       return;
     }
-    if (current.length >= 8) return;
-    current.push(teamId);
+    if (groupThird !== undefined) return;
+    if (this.thirdCount() >= 8) return;
+    current[group] = teamId;
     this.selectedThirds.set(current);
   }
 
   isThirdSelected(teamId: string | number): boolean {
-    return this.selectedThirds().includes(teamId);
+    return Object.values(this.selectedThirds()).includes(teamId);
   }
 
   thirdCount(): number {
-    return this.selectedThirds().length;
+    return Object.keys(this.selectedThirds()).length;
   }
 
   isSelected(group: string, teamId: string | number): boolean {
@@ -618,7 +668,7 @@ export class PaginaPrincipal {
       }
     }
 
-    for (const id of this.selectedThirds()) {
+    for (const id of Object.values(this.selectedThirds())) {
       const exists = predicciones.some((p) => Number(p.IdEquipo) === Number(id));
       if (!exists) {
         predicciones.push({
