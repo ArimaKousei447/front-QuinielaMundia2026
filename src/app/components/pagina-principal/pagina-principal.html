@@ -94,15 +94,30 @@
       <div *ngIf="partidos().length === 0" class="status-message">Selecciona una fase para ver los partidos.</div>
       <div class="bracket" *ngIf="partidos().length > 0">
         <svg class="bracket-svg" preserveAspectRatio="none"></svg>
-        <div class="round-column" *ngFor="let round of (bracketRounds || []); let rIndex = index">
+        <div class="round-column" [class.prediction-column]="rIndex === 1" *ngFor="let round of (bracketRounds || []); let rIndex = index">
+          <h3 class="round-title">{{ roundLabels[rIndex] || ('Ronda ' + (rIndex + 1)) }}</h3>
           <div *ngFor="let match of round; let mIndex = index" class="match-card" [attr.data-round]="rIndex" [attr.data-match]="mIndex" id="match-{{rIndex}}-{{mIndex}}">
-            <div class="team" [class.winner]="(rIndex===0 && winners()[match?.matchId]===match?.teamA?.id) || (rIndex>0 && (match?.teamA && match?.teamA.id && ((bracketRounds[rIndex+1] && bracketRounds[rIndex+1][floorDiv(mIndex,2)]?.teamA?.id===match.teamA.id) || false)))">
-              <button *ngIf="match?.teamA" type="button" (click)="selectWinnerRound(rIndex, mIndex, match.teamA)">{{ match.teamA.name }}</button>
-              <div *ngIf="!match?.teamA">—</div>
+            <div class="team" [class.winner]="isRoundTeamWinner(rIndex, mIndex, match?.teamA?.id)">
+              <button *ngIf="match.teamA as teamA" type="button" (click)="selectWinnerRound(rIndex, mIndex, teamA)">
+                <span class="team-inline">
+                  <span class="team-flag small" *ngIf="teamA.flagUrl">
+                    <img [src]="teamA.flagUrl" [alt]="teamA.name" />
+                  </span>
+                  <span>{{ teamA.name }}</span>
+                </span>
+              </button>
+              <div *ngIf="!match.teamA">—</div>
             </div>
-            <div class="team" [class.winner]="(rIndex===0 && winners()[match?.matchId]===match?.teamB?.id) || (rIndex>0 && (match?.teamB && match?.teamB.id && ((bracketRounds[rIndex+1] && bracketRounds[rIndex+1][floorDiv(mIndex,2)]?.teamA?.id===match.teamB.id) || false)))">
-              <button *ngIf="match?.teamB" type="button" (click)="selectWinnerRound(rIndex, mIndex, match.teamB)">{{ match.teamB.name }}</button>
-              <div *ngIf="!match?.teamB">—</div>
+            <div class="team" [class.winner]="isRoundTeamWinner(rIndex, mIndex, match?.teamB?.id)">
+              <button *ngIf="match.teamB as teamB" type="button" (click)="selectWinnerRound(rIndex, mIndex, teamB)">
+                <span class="team-inline">
+                  <span class="team-flag small" *ngIf="teamB.flagUrl">
+                    <img [src]="teamB.flagUrl" [alt]="teamB.name" />
+                  </span>
+                  <span>{{ teamB.name }}</span>
+                </span>
+              </button>
+              <div *ngIf="!match.teamB">—</div>
             </div>
           </div>
         </div>

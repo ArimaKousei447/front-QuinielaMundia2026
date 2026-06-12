@@ -1,10 +1,13 @@
 .login-container {
-  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background:
+    linear-gradient(135deg, rgba(15, 23, 36, 0.62) 0%, rgba(15, 23, 36, 0.42) 100%),
+    url('/fondoLogin.png') center/cover no-repeat;
   font-family: Inter, system-ui, sans-serif;
 }
 

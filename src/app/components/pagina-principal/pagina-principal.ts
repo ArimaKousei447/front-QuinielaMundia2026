@@ -16,6 +16,30 @@ interface PartidoPrediccion {
   IdModalidad: number;
 }
 
+interface BracketTeam {
+  id: string | number;
+  name: string;
+  flagUrl?: string;
+}
+
+interface BracketMatch {
+  teamA: BracketTeam | null;
+  teamB: BracketTeam | null;
+  matchId: string | number | null;
+}
+
+interface KnockoutTeam {
+  id: string | number;
+  name: string;
+  flagUrl: string | null;
+}
+
+interface KnockoutMatch {
+  IdPartido: number;
+  teamA: KnockoutTeam;
+  teamB: KnockoutTeam;
+}
+
 export interface Fase {
   Nombre?: string;
   nombre?: string;
@@ -44,8 +68,10 @@ export class PaginaPrincipal {
   selectedFase: any = signal(null as any);
   selectedModalidadId = signal<number | null>(null);
   partidos = signal<any[]>([]);
+  knockoutMatches = signal<KnockoutMatch[]>([]);
   winners = signal<Record<string | number, string | number>>({});
-  bracketRounds: any[] = [];
+  bracketRounds: BracketMatch[][] = [];
+  roundLabels: string[] = [];
   // Mis 4 selecciones
   selectedFour = signal<Array<string | number>>([]);
   loading = signal(true);
@@ -279,42 +305,129 @@ export class PaginaPrincipal {
     // cargar partidos
     if (faseId) {
       this.partidos.set([]);
+      this.knockoutMatches.set([]);
       this.winners.set({});
       this.servicio.getPartidos(faseId).subscribe({
         next: (p: any) => {
           const list = Array.isArray(p) ? p : [];
           this.partidos.set(list);
+          this.buildKnockoutMatches(list);
           this.buildBracketFromPartidos(list);
         },
         error: () => {
           this.partidos.set([]);
+          this.knockoutMatches.set([]);
           this.buildBracketFromPartidos([]);
         },
       });
     }
   }
 
+  private normalizeText(value: unknown): string {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  isKnockoutPhase(): boolean {
+    const fase = this.selectedFase();
+    const faseName = this.normalizeText(this.extractId(fase, ['NombreFase', 'Nombre', 'nombre', 'name']));
+    if (!faseName) return false;
+    return ['dieciseisavos', 'octavos', 'cuartos', 'semifinal', 'final'].some((name) => faseName.includes(name));
+  }
+
+  private getEquipoByIdOrName(id: unknown, name: unknown): Equipo | null {
+    const equipos = this.equipos() ?? [];
+    if (id !== undefined && id !== null) {
+      const numericId = Number(id);
+      const byId = equipos.find((e) => Number(e.id) === numericId);
+      if (byId) return byId;
+    }
+    const normalizedName = this.normalizeText(name);
+    if (!normalizedName) return null;
+    const byName = equipos.find((e) => this.normalizeText(this.teamLabel(e)) === normalizedName);
+    return byName ?? null;
+  }
+
+  private resolveKnockoutTeam(id: unknown, name: unknown): KnockoutTeam {
+    const equipo = this.getEquipoByIdOrName(id, name);
+    const fallbackName = String(name ?? (equipo ? this.teamLabel(equipo) : 'Por definir'));
+    const normalizedId =
+      typeof id === 'string' || typeof id === 'number'
+        ? id
+        : (typeof equipo?.id === 'string' || typeof equipo?.id === 'number'
+          ? equipo.id
+          : fallbackName);
+    return {
+      id: normalizedId,
+      name: fallbackName,
+      flagUrl: (equipo?.flagUrl as string | undefined) ?? ((equipo as any)?.flag as string | undefined) ?? null,
+    };
+  }
+
+  buildKnockoutMatches(partidos: any[]): void {
+    const mapped: KnockoutMatch[] = (partidos ?? []).map((p: any) => {
+      const partidoId = Number(this.extractId(p, ['IdPartido', 'id', 'Id']) ?? 0);
+      const teamAId = this.extractId(p, ['IdEquipo1', 'IdEquipoA', 'idEquipo1']);
+      const teamBId = this.extractId(p, ['IdEquipo2', 'IdEquipoB', 'idEquipo2']);
+      const teamAName = this.extractId(p, ['Equipo1', 'EquipoA', 'NombreEquipo1', 'nombreEquipo1']);
+      const teamBName = this.extractId(p, ['Equipo2', 'EquipoB', 'NombreEquipo2', 'nombreEquipo2']);
+      return {
+        IdPartido: partidoId,
+        teamA: this.resolveKnockoutTeam(teamAId, teamAName),
+        teamB: this.resolveKnockoutTeam(teamBId, teamBName),
+      };
+    });
+    this.knockoutMatches.set(mapped);
+  }
+
+  isTeamWinner(match: KnockoutMatch, teamId: string | number): boolean {
+    const winnerId = this.winners()[String(match.IdPartido)];
+    return winnerId !== undefined && Number(winnerId) === Number(teamId);
+  }
+
+  winnerOfMatch(match: KnockoutMatch): KnockoutTeam | null {
+    const winnerId = this.winners()[String(match.IdPartido)];
+    if (winnerId === undefined || winnerId === null) return null;
+    if (Number(match.teamA.id) === Number(winnerId)) return match.teamA;
+    if (Number(match.teamB.id) === Number(winnerId)) return match.teamB;
+    return null;
+  }
+
   // Build rounds (columns) for visual bracket from partidos
   buildBracketFromPartidos(partidos: any[]): void {
     if (!partidos || partidos.length === 0) {
-      this.bracketRounds = [] as any;
+      this.bracketRounds = [];
+      this.roundLabels = [];
       this.winners.set({});
       return;
     }
 
-    const matches = partidos.map((p) => ({
-      id: p.IdPartido ?? p.Id ?? p.id,
-      teamA: { id: p.IdEquipo1 ?? p.IdEquipo1 ?? p.IdEquipo1, name: p.Equipo1 ?? p.Equipo1 ?? p.EquipoA ?? '' },
-      teamB: { id: p.IdEquipo2 ?? p.IdEquipo2 ?? p.IdEquipo2, name: p.Equipo2 ?? p.Equipo2 ?? p.EquipoB ?? '' },
+    const initialRound: BracketMatch[] = partidos.map((p) => {
+      const teamAId = p.IdEquipo1 ?? p.IdEquipoA ?? p.idEquipo1 ?? p.idEquipoA ?? null;
+      const teamBId = p.IdEquipo2 ?? p.IdEquipoB ?? p.idEquipo2 ?? p.idEquipoB ?? null;
+      const teamAName = p.Equipo1 ?? p.NombreEquipo1 ?? p.EquipoA ?? p.equipo1 ?? p.equipoA ?? '';
+      const teamBName = p.Equipo2 ?? p.NombreEquipo2 ?? p.EquipoB ?? p.equipo2 ?? p.equipoB ?? '';
+
+      return {
+        matchId: p.IdPartido ?? p.Id ?? p.id ?? null,
+        teamA: this.toBracketTeam(teamAId, teamAName),
+        teamB: this.toBracketTeam(teamBId, teamBName),
+      };
+    });
+
+    // Mostrar solo dos columnas: fase seleccionada y la fase que se predice.
+    const nextRound: BracketMatch[] = new Array(Math.ceil(initialRound.length / 2)).fill(null).map(() => ({
+      teamA: null,
+      teamB: null,
+      matchId: null,
     }));
+    const rounds: BracketMatch[][] = [initialRound, nextRound];
 
-    // Simplified bracket: only two columns (matches -> winners)
-    const rounds: any[] = [];
-    rounds.push(matches.map((m) => ({ teamA: m.teamA, teamB: m.teamB, matchId: m.id })));
-    const nextSlots = new Array(Math.ceil(matches.length / 2)).fill(null).map(() => ({ teamA: null, teamB: null, matchId: null }));
-    rounds.push(nextSlots);
-
-    (this as any).bracketRounds = rounds;
+    this.bracketRounds = rounds;
+    this.roundLabels = this.getRoundLabels();
     // reset winners map
     this.winners.set({});
     // draw connectors after DOM updates
@@ -324,36 +437,48 @@ export class PaginaPrincipal {
   // select winner in a given round and match index; for round 0 update winners map and advance to next column
   selectWinnerRound(roundIndex: number, matchIndex: number, team: any): void {
     if (this.modalidadIsClosed(this.selectedModalidadId())) return;
-    const rounds: any[] = (this as any).bracketRounds || [];
+    if (roundIndex !== 0) return;
+    const rounds: BracketMatch[][] = this.bracketRounds || [];
     if (!rounds[roundIndex]) return;
+    if (!team?.id) return;
 
     const chosen = team;
-    // only support selecting from first round (matches) to advance to winners column
-    if (roundIndex === 0 && rounds.length > 1) {
-      const nextIdx = Math.floor(matchIndex / 2);
-      const slot = rounds[1][nextIdx];
+    const match = rounds[roundIndex][matchIndex];
+    if (!match) return;
 
-      // toggle selection: if already selected, deselect and remove from next slot
-      const match = rounds[0][matchIndex];
-      const matchId = String(match.matchId);
-      const current = { ...this.winners() };
-      if (current[matchId] === chosen.id) {
-        // deselect
-        delete current[matchId];
-        this.winners.set(current);
-        // remove from next slot depending on parity: even matchIndex -> teamA, odd -> teamB
-        if (matchIndex % 2 === 0) slot.teamA = null; else slot.teamB = null;
-      } else {
-        // select: place deterministically: even -> teamA, odd -> teamB
-        if (matchIndex % 2 === 0) slot.teamA = { id: chosen.id, name: chosen.name };
-        else slot.teamB = { id: chosen.id, name: chosen.name };
+    const winnerKey = this.getWinnerKey(roundIndex, matchIndex, match.matchId);
+    const current = { ...this.winners() };
+    const nextRound = rounds[roundIndex + 1];
 
-        current[matchId] = chosen.id;
-        this.winners.set(current);
+    if (current[winnerKey] === chosen.id) {
+      delete current[winnerKey];
+      if (nextRound) {
+        const nextIdx = Math.floor(matchIndex / 2);
+        const slot = nextRound[nextIdx];
+        if (slot) {
+          if (matchIndex % 2 === 0) slot.teamA = null;
+          else slot.teamB = null;
+        }
+      }
+    } else {
+      current[winnerKey] = chosen.id;
+      if (nextRound) {
+        const nextIdx = Math.floor(matchIndex / 2);
+        const slot = nextRound[nextIdx];
+        if (slot) {
+          const winnerTeam: BracketTeam = {
+            id: chosen.id,
+            name: chosen.name,
+            flagUrl: chosen.flagUrl,
+          };
+          if (matchIndex % 2 === 0) slot.teamA = winnerTeam;
+          else slot.teamB = winnerTeam;
+        }
       }
     }
 
-    (this as any).bracketRounds = rounds;
+    this.winners.set(current);
+    this.bracketRounds = [...rounds];
     setTimeout(() => this.drawConnectors(), 50);
   }
 
@@ -368,7 +493,7 @@ export class PaginaPrincipal {
       // clear svg
       while (svg.firstChild) svg.removeChild(svg.firstChild);
 
-      const rounds = (this as any).bracketRounds || [];
+      const rounds = this.bracketRounds || [];
       for (let r = 0; r < rounds.length - 1; r++) {
         const col = container.querySelectorAll(`[data-round='${r}']`);
         const nextCol = container.querySelectorAll(`[data-round='${r+1}']`);
@@ -389,9 +514,8 @@ export class PaginaPrincipal {
           const d = `M ${startX} ${startY} C ${startX + dx} ${startY} ${endX - dx} ${endY} ${endX} ${endY}`;
           ns.setAttribute('d', d);
           // color green if source match has a winner
-          const match = rounds[0] && rounds[0][idx];
-          const matchId = match ? match.matchId : null;
-          const hasWinner = matchId && this.winners && this.winners()[matchId] !== undefined;
+          const winnerKey = this.getWinnerKey(r, idx, rounds[r]?.[idx]?.matchId);
+          const hasWinner = this.winners()[winnerKey] !== undefined;
           ns.setAttribute('stroke', hasWinner ? '#00c853' : 'rgba(255,255,255,0.12)');
           ns.setAttribute('stroke-width', '3');
           ns.setAttribute('fill', 'none');
@@ -402,6 +526,65 @@ export class PaginaPrincipal {
     } catch (e) {
       // silent
     }
+  }
+
+  private toBracketTeam(teamId: any, teamName: any): BracketTeam | null {
+    const name = String(teamName ?? '').trim();
+    const rawId = teamId ?? name;
+    const id: string | number =
+      typeof rawId === 'string' || typeof rawId === 'number'
+        ? rawId
+        : String(rawId ?? '');
+    if (!name && (id === null || id === undefined || id === '')) {
+      return null;
+    }
+
+    const equipo = this.findEquipo(teamId, name);
+    return {
+      id,
+      name: name || equipo?.name || `Equipo ${id}`,
+      flagUrl: (equipo?.flagUrl as string | undefined) ?? undefined,
+    };
+  }
+
+  isRoundTeamWinner(roundIndex: number, matchIndex: number, teamId: string | number | null | undefined): boolean {
+    if (teamId === null || teamId === undefined) return false;
+    const round = this.bracketRounds?.[roundIndex];
+    const match = round?.[matchIndex];
+    if (!match) return false;
+    const key = this.getWinnerKey(roundIndex, matchIndex, match.matchId);
+    return this.winners()[key] === teamId;
+  }
+
+  private findEquipo(teamId: any, teamName: string): Equipo | undefined {
+    const all = this.equipos() ?? [];
+    if (teamId !== null && teamId !== undefined && teamId !== '') {
+      const byId = all.find((e) => String(e.id) === String(teamId));
+      if (byId) return byId;
+    }
+    if (!teamName) return undefined;
+    const target = teamName.toLowerCase().trim();
+    return all.find((e) => String(e.name ?? '').toLowerCase().trim() === target);
+  }
+
+  private getWinnerKey(roundIndex: number, matchIndex: number, matchId: string | number | null): string {
+    if (matchId !== null && matchId !== undefined && matchId !== '') {
+      return String(matchId);
+    }
+    return `r${roundIndex}-m${matchIndex}`;
+  }
+
+  private getRoundLabels(): string[] {
+    const selectedRaw = String(this.extractId(this.selectedFase(), ['NombreFase', 'Nombre', 'nombre', 'name']) ?? 'Fase');
+    const selectedNormalized = this.normalizeText(selectedRaw);
+
+    if (selectedNormalized.includes('dieciseis')) return ['Dieciseisavos', 'Octavos'];
+    if (selectedNormalized.includes('octav')) return ['Octavos', 'Cuartos'];
+    if (selectedNormalized.includes('cuart')) return ['Cuartos', 'Semifinal'];
+    if (selectedNormalized.includes('semi')) return ['Semifinal', 'Final'];
+    if (selectedNormalized.includes('final')) return ['Final', 'Campeon'];
+
+    return [selectedRaw, 'Siguiente fase'];
   }
 
   // redraw on resize
@@ -442,7 +625,11 @@ export class PaginaPrincipal {
     if (this.modalidadIsClosed(this.selectedModalidadId())) return;
     const pId = this.extractId(partido, ['IdPartido', 'id', 'Id']) ?? JSON.stringify(partido);
     const current = { ...this.winners() };
-    current[pId] = teamId;
+    if (current[pId] === teamId) {
+      delete current[pId];
+    } else {
+      current[pId] = teamId;
+    }
     this.winners.set(current);
   }
 
