@@ -37,9 +37,9 @@
   @if (activeTab() === 'fases') {
     <section class="tab-content">
       <div class="fases-selector">
-        @for (fase of fases(); track fase.IdFase) {
-          <div class="fase-chip" [class.selected]="isFaseSelected(fase)" (click)="selectFase(fase)">
-            {{ fase.Nombre }}
+        @for (mod of modalidadesFases(); track mod.IdModalidad) {
+          <div class="fase-chip" [class.selected]="isModalidadSelected(mod)" (click)="selectModalidad(mod)">
+            {{ mod.Nombre }}
           </div>
         }
         @if (selectedModalidadId() !== null) {
@@ -132,14 +132,14 @@
           @if (partidos().length > 0) {
             <div class="bracket">
               <svg class="bracket-svg" preserveAspectRatio="none"></svg>
-              @for (round of bracketRounds; track $index) {
-                <div class="round-column" [class.prediction-column]="$index === 1">
-                  <h3 class="round-title">{{ roundLabels[$index] || ('Ronda ' + ($index + 1)) }}</h3>
-                  @for (match of round; track $index) {
-                    <div class="match-card" [attr.data-round]="$index" [attr.data-match]="$index" id="match-{{$index}}-{{$index}}">
-                      <div class="team" [class.winner]="isRoundTeamWinner($index, $index, match?.teamA?.id)">
+              @for (round of bracketRounds; track $index; let roundIdx = $index) {
+                <div class="round-column" [class.prediction-column]="roundIdx === 1">
+                  <h3 class="round-title">{{ roundLabels[roundIdx] || ('Ronda ' + (roundIdx + 1)) }}</h3>
+                  @for (match of round; track $index; let matchIdx = $index) {
+                    <div class="match-card" [attr.data-round]="roundIdx" [attr.data-match]="matchIdx" id="match-{{roundIdx}}-{{matchIdx}}">
+                      <div class="team" [class.winner]="isRoundTeamWinner(roundIdx, matchIdx, match?.teamA?.id)">
                         @if (match.teamA; as teamA) {
-                          <button type="button" (click)="selectWinnerRound($index, $index, teamA)">
+                          <button type="button" (click)="selectWinnerRound(roundIdx, matchIdx, teamA)">
                             <span class="team-inline">
                               @if (teamA.flagUrl) {
                                 <span class="team-flag small">
@@ -153,9 +153,9 @@
                           <div>—</div>
                         }
                       </div>
-                      <div class="team" [class.winner]="isRoundTeamWinner($index, $index, match?.teamB?.id)">
+                      <div class="team" [class.winner]="isRoundTeamWinner(roundIdx, matchIdx, match?.teamB?.id)">
                         @if (match.teamB; as teamB) {
-                          <button type="button" (click)="selectWinnerRound($index, $index, teamB)">
+                          <button type="button" (click)="selectWinnerRound(roundIdx, matchIdx, teamB)">
                             <span class="team-inline">
                               @if (teamB.flagUrl) {
                                 <span class="team-flag small">
@@ -292,7 +292,6 @@
               <div class="pred-card-header">
                 <div class="pred-info">
                   <span class="pred-modalidad">{{ p.NombreModalidad }}</span>
-                  <span class="pred-fase">{{ p.NombreFase }}</span>
                 </div>
                 <span class="pred-status" [class.closed]="isPredictionVisibleByModalidad(p)" [class.open]="!isPredictionVisibleByModalidad(p)">
                   {{ isPredictionVisibleByModalidad(p) ? 'Cerrada' : 'Abierta' }}
@@ -328,7 +327,7 @@
               <div class="pred-card-header">
                 <div class="pred-info">
                   <span class="pred-modalidad">{{ p.NombreModalidad }}</span>
-                  <span class="pred-fase">{{ p.NombreFase }} — {{ p.Equipo1 }} vs {{ p.Equipo2 }}</span>
+                  <span class="pred-fase">{{ p.Equipo1 }} vs {{ p.Equipo2 }}</span>
                 </div>
                 <span class="pred-status" [class.closed]="isPredictionVisibleByModalidad(p)" [class.open]="!isPredictionVisibleByModalidad(p)">
                   {{ isPredictionVisibleByModalidad(p) ? 'Cerrada' : 'Abierta' }}
@@ -425,7 +424,7 @@
               <div class="modalidad-card">
                 <div class="modalidad-header">
                   <div>
-                    <strong>{{ p.NombreFase }}</strong>
+                    <strong>{{ p.NombreModalidad }}</strong>
                     <div class="modalidad-meta">{{ p.Equipo1 }} vs {{ p.Equipo2 }}</div>
                   </div>
                   <span class="status" [class.closed]="isPredictionVisibleByModalidad(p)" [class.open]="!isPredictionVisibleByModalidad(p)">

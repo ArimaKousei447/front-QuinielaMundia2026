@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
-import { ApiResponse } from '../models/quiniela.models';
+import { ApiResponse, UsuarioAdmin } from '../models/quiniela.models';
 
 interface LoginData {
   idUsuario: number;
@@ -83,6 +83,20 @@ export class AuthService {
   getPrimerLogin(): boolean {
     const data = this.getUserData();
     return data?.primerLogin ?? false;
+  }
+
+  crearUsuario(
+    nombre: string,
+    email: string,
+    contrasenaTemporal: string,
+    idRol: number
+  ): Observable<ApiResponse<{ idUsuario: number; mensaje: string }>> {
+    const body = { Nombre: nombre, Email: email, ContrasenaTemporal: contrasenaTemporal, IdRol: idRol };
+    return this.http.post<ApiResponse<{ idUsuario: number; mensaje: string }>>(`${this.base}/crearUsuario`, body);
+  }
+
+  obtenerUsuarios(): Observable<ApiResponse<UsuarioAdmin[]>> {
+    return this.http.get<ApiResponse<UsuarioAdmin[]>>(`${this.base}/usuarios`);
   }
 
   isAuthenticated(): boolean {

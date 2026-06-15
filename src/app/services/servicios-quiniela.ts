@@ -4,7 +4,6 @@ import { Observable } from 'rxjs';
 import {
   ApiResponse,
   Equipo,
-  Fase,
   FilaClasificacion,
   Modalidad,
   Partido,
@@ -24,10 +23,6 @@ export class ServiciosQuiniela {
     return `https://flagcdn.com/w320/${codigoISO.toLowerCase().trim()}.png`;
   }
 
-  getFases(): Observable<ApiResponse<Fase[]>> {
-    return this.http.get<ApiResponse<Fase[]>>(`${this.baseUrl}/getFases`);
-  }
-
   getModalidades(): Observable<ApiResponse<Modalidad[]>> {
     return this.http.get<ApiResponse<Modalidad[]>>(`${this.baseUrl}/getModalidades`);
   }
@@ -36,9 +31,9 @@ export class ServiciosQuiniela {
     return this.http.get<ApiResponse<Equipo[]>>(`${this.baseUrl}/getEquipos`);
   }
 
-  getPartidos(idFase?: number): Observable<ApiResponse<Partido[]>> {
-    const url = idFase !== undefined
-      ? `${this.baseUrl}/getPartidos?IdFase=${idFase}`
+  getPartidos(idModalidad?: number): Observable<ApiResponse<Partido[]>> {
+    const url = idModalidad !== undefined
+      ? `${this.baseUrl}/getPartidos?IdModalidad=${idModalidad}`
       : `${this.baseUrl}/getPartidos`;
     return this.http.get<ApiResponse<Partido[]>>(url);
   }

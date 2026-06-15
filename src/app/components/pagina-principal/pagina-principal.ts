@@ -4,7 +4,6 @@ import { AuthService } from '../../services/auth.service';
 import { ServiciosQuiniela } from '../../services/servicios-quiniela';
 import {
   Equipo,
-  Fase,
   FilaClasificacion,
   Modalidad,
   Partido,
@@ -51,10 +50,8 @@ export class PaginaPrincipal {
   private readonly router = inject(Router);
 
   equipos = signal<Equipo[]>([]);
-  fases = signal<Fase[]>([]);
   modalidades = signal<Modalidad[]>([]);
   activeTab = signal<'fases' | 'mis4' | 'clasificacion' | 'misPredicciones'>('fases');
-  selectedFase = signal<Fase | null>(null);
   selectedModalidadId = signal<number | null>(null);
   partidos = signal<Partido[]>([]);
   knockoutMatches = signal<KnockoutMatch[]>([]);
@@ -100,14 +97,17 @@ export class PaginaPrincipal {
 
   groupNames = computed(() => Object.keys(this.grupos()));
 
+  modalidadesFases = computed(() =>
+    this.modalidades().filter(m => m.IdModalidad <= 6)
+  );
+
   hasSelections = computed(() => {
     const groups = this.groupNames();
     if (groups.length === 0) return false;
     for (const g of groups) {
       if ((this.selectedTeams()[g] ?? []).length !== 2) return false;
-      if (!this.groupHasThird(g)) return false;
     }
-    return this.thirdCount() === groups.length;
+    return this.thirdCount() === 8;
   });
 
   private notificationTimer: number | null = null;
@@ -180,20 +180,12 @@ export class PaginaPrincipal {
     this.loading.set(true);
     this.error.set(undefined);
 
-    this.servicio.getFases().subscribe({
-      next: (response) => {
-        if (response.hasError) { this.fases.set([]); return; }
-        const arr = response.data ?? [];
-        this.fases.set(arr);
-        if (arr.length > 0 && !this.selectedFase()) this.selectFase(arr[0]);
-      },
-      error: () => this.fases.set([]),
-    });
-
     this.servicio.getModalidades().subscribe({
       next: (response) => {
         if (response.hasError) { this.modalidades.set([]); return; }
-        this.modalidades.set(response.data ?? []);
+        const arr = response.data ?? [];
+        this.modalidades.set(arr);
+        if (arr.length > 0 && !this.selectedModalidadId()) this.selectModalidad(arr[0]);
       },
       error: () => this.modalidades.set([]),
     });
@@ -367,8 +359,8 @@ export class PaginaPrincipal {
     this.selectedFour.set(current);
   }
 
-  isFaseSelected(fase: Fase): boolean {
-    return this.selectedFase()?.IdFase === fase.IdFase;
+  isModalidadSelected(mod: Modalidad): boolean {
+    return this.selectedModalidadId() === mod.IdModalidad;
   }
 
   getModalidadById(id: number | null): Modalidad | null {
@@ -382,28 +374,14 @@ export class PaginaPrincipal {
     try { return new Date() > new Date(m.fechaDeCierre); } catch { return false; }
   }
 
-  selectFase(fase: Fase): void {
-    this.selectedFase.set(fase);
-    const faseId = fase.IdFase;
+  selectModalidad(mod: Modalidad): void {
+    this.selectedModalidadId.set(mod.IdModalidad);
+    this.partidos.set([]);
+    this.knockoutMatches.set([]);
+    this.winners.set({});
 
-    let modId: number | null = null;
-    const fName = this.normalizeText(fase.Nombre);
-    for (const m of this.modalidades()) {
-      const mName = this.normalizeText(m.Nombre);
-      if (!mName || !fName) continue;
-      if (mName.includes(fName) || fName.includes(mName)) {
-        modId = m.IdModalidad;
-        break;
-      }
-    }
-    if (!modId && fName.includes('grup')) modId = 1;
-    this.selectedModalidadId.set(modId ?? null);
-
-    if (faseId) {
-      this.partidos.set([]);
-      this.knockoutMatches.set([]);
-      this.winners.set({});
-      this.servicio.getPartidos(faseId).subscribe({
+    if (mod.IdModalidad !== 1) {
+      this.servicio.getPartidos(mod.IdModalidad).subscribe({
         next: (response) => {
           if (response.hasError) {
             this.partidos.set([]);
@@ -434,10 +412,8 @@ export class PaginaPrincipal {
   }
 
   isKnockoutPhase(): boolean {
-    const fase = this.selectedFase();
-    if (!fase) return false;
-    const faseName = this.normalizeText(fase.Nombre);
-    return ['dieciseisavos', 'octavos', 'cuartos', 'semifinal', 'final'].some(n => faseName.includes(n));
+    const modId = this.selectedModalidadId();
+    return modId !== null && modId >= 3 && modId <= 6;
   }
 
   private getEquipoByIdOrName(id: number, name: string): Equipo | null {
@@ -618,14 +594,13 @@ export class PaginaPrincipal {
   }
 
   private getRoundLabels(): string[] {
-    const fase = this.selectedFase();
-    const selectedNormalized = fase ? this.normalizeText(fase.Nombre) : '';
-    if (selectedNormalized.includes('dieciseis')) return ['Dieciseisavos', 'Octavos'];
-    if (selectedNormalized.includes('octav')) return ['Octavos', 'Cuartos'];
-    if (selectedNormalized.includes('cuart')) return ['Cuartos', 'Semifinal'];
-    if (selectedNormalized.includes('semi')) return ['Semifinal', 'Final'];
-    if (selectedNormalized.includes('final')) return ['Final', 'Campeon'];
-    return [fase?.Nombre ?? 'Fase', 'Siguiente fase'];
+    const modId = this.selectedModalidadId();
+    if (modId === 3) return ['Octavos', 'Cuartos'];
+    if (modId === 4) return ['Cuartos', 'Semifinal'];
+    if (modId === 5) return ['Semifinal', 'Final'];
+    if (modId === 6) return ['Final', 'Campeón'];
+    const mod = this.modalidades().find(m => m.IdModalidad === modId);
+    return [mod?.Nombre ?? 'Fase', 'Siguiente fase'];
   }
 
   selectWinner(partido: Partido, teamId: number): void {
@@ -664,20 +639,18 @@ export class PaginaPrincipal {
 
     if (Number(modId) === 1) {
       const predicciones: PrediccionGrupoPayload[] = [];
-      const faseId = this.selectedFase()?.IdFase ?? 2;
 
       for (const ids of Object.values(this.selectedTeams())) {
         for (const id of ids ?? []) {
           predicciones.push({
             IdEquipo: id,
-            IdFase: faseId,
             EsMejorTercero: this.isThirdSelected(id) ? 1 : 0,
           });
         }
       }
       for (const id of Object.values(this.selectedThirds())) {
         if (!predicciones.some(p => p.IdEquipo === id)) {
-          predicciones.push({ IdEquipo: id, IdFase: faseId, EsMejorTercero: 1 });
+          predicciones.push({ IdEquipo: id, EsMejorTercero: 1 });
         }
       }
 
@@ -742,7 +715,6 @@ export class PaginaPrincipal {
     }
     const predicciones: PrediccionGrupoPayload[] = this.selectedFour().map(id => ({
       IdEquipo: id,
-      IdFase: 1,
       EsMejorTercero: 0,
     }));
     this.sending.set(true);

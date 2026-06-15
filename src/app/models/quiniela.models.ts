@@ -6,12 +6,6 @@ export interface Equipo {
   flagUrl?: string;
 }
 
-export interface Fase {
-  IdFase: number;
-  Nombre: string;
-  numeroDeEquipos: number;
-}
-
 export interface Modalidad {
   IdModalidad: number;
   Nombre: string;
@@ -20,8 +14,8 @@ export interface Modalidad {
 
 export interface Partido {
   IdPartido: number;
-  IdFase: number;
-  NombreFase: string;
+  IdModalidad: number;
+  NombreModalidad: string;
   IdEquipo1: number;
   Equipo1: string;
   CodigoISO1: string | null;
@@ -49,8 +43,6 @@ export interface PrediccionEquipo {
   IdModalidad: number;
   NombreModalidad: string;
   fechaDeCierre: string | null;
-  IdFase: number;
-  NombreFase: string;
   IdEquipo: number;
   NombreEquipo: string;
   Grupo: string;
@@ -66,8 +58,6 @@ export interface PrediccionPartido {
   NombreModalidad: string;
   fechaDeCierre: string | null;
   IdPartido: number;
-  IdFase: number;
-  NombreFase: string;
   IdEquipo1: number;
   Equipo1: string;
   CodigoISO1: string | null;
@@ -80,6 +70,14 @@ export interface PrediccionPartido {
   PuntosGanados: number;
 }
 
+export interface UsuarioAdmin {
+  IdUsuario: number;
+  Nombre: string;
+  Email: string;
+  IdRol: number;
+  PrimerLogin: boolean;
+}
+
 export interface ApiResponse<T> {
   data: T;
   errors: { codigo: number | string; descripcion: string }[];
@@ -88,7 +86,6 @@ export interface ApiResponse<T> {
 
 export interface PrediccionGrupoPayload {
   IdEquipo: number;
-  IdFase: number;
   EsMejorTercero: number;
 }
 

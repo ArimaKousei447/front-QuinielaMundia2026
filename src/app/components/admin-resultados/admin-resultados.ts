@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ServiciosQuiniela } from '../../services/servicios-quiniela';
-import { Equipo, Fase, Partido } from '../../models/quiniela.models';
+import { Equipo, Partido, UsuarioAdmin } from '../../models/quiniela.models';
 
 @Component({
   standalone: true,
@@ -17,10 +17,9 @@ export class AdminResultados {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  activeSection = signal<'partido' | 'grupos' | 'consolidar'>('partido');
+  activeSection = signal<'partido' | 'grupos' | 'consolidar' | 'usuarios'>('partido');
 
   // Datos cargados
-  fases = signal<Fase[]>([]);
   equipos = signal<Equipo[]>([]);
   partidos = signal<Partido[]>([]);
 
@@ -32,6 +31,14 @@ export class AdminResultados {
   grupoNombre = signal('');
   grupo1erEquipoId = signal<number | null>(null);
   grupo2doEquipoId = signal<number | null>(null);
+
+  // Usuarios
+  usuarios = signal<UsuarioAdmin[]>([]);
+  loadingUsuarios = signal(false);
+  nuevoNombre = signal('');
+  nuevoEmail = signal('');
+  nuevaContrasena = signal('');
+  nuevoRol = signal<number>(1);
 
   loading = signal(false);
   loadingPartidos = signal(false);
@@ -59,13 +66,10 @@ export class AdminResultados {
 
   constructor() {
     this.loadData();
+    this.loadUsuarios();
   }
 
   loadData(): void {
-    this.servicio.getFases().subscribe({
-      next: (r) => { if (!r.hasError) this.fases.set(r.data ?? []); },
-      error: () => {},
-    });
     this.servicio.getEquipos().subscribe({
       next: (r) => { if (!r.hasError) this.equipos.set(r.data ?? []); },
       error: () => {},
@@ -159,6 +163,51 @@ export class AdminResultados {
           return;
         }
         this.notify('success', r.data?.mensaje ?? 'Puntos consolidados correctamente.');
+      },
+      error: () => {
+        this.loading.set(false);
+        this.notify('error', 'Error al conectar con el servidor.');
+      },
+    });
+  }
+
+  loadUsuarios(): void {
+    this.loadingUsuarios.set(true);
+    this.auth.obtenerUsuarios().subscribe({
+      next: (r) => {
+        this.loadingUsuarios.set(false);
+        if (!r.hasError) this.usuarios.set(r.data ?? []);
+        else this.notify('error', r.errors?.[0]?.descripcion ?? 'Error al cargar usuarios.');
+      },
+      error: () => {
+        this.loadingUsuarios.set(false);
+        this.notify('error', 'Error al conectar con el servidor.');
+      },
+    });
+  }
+
+  crearUsuario(): void {
+    const nombre = this.nuevoNombre().trim();
+    const email = this.nuevoEmail().trim();
+    const contrasena = this.nuevaContrasena().trim();
+    if (!nombre || !email || !contrasena) {
+      this.notify('error', 'Completa todos los campos.');
+      return;
+    }
+    this.loading.set(true);
+    this.auth.crearUsuario(nombre, email, contrasena, this.nuevoRol()).subscribe({
+      next: (r) => {
+        this.loading.set(false);
+        if (r.hasError) {
+          this.notify('error', r.errors?.[0]?.descripcion ?? 'Error al crear usuario.');
+          return;
+        }
+        this.notify('success', r.data?.mensaje ?? 'Usuario creado correctamente.');
+        this.nuevoNombre.set('');
+        this.nuevoEmail.set('');
+        this.nuevaContrasena.set('');
+        this.nuevoRol.set(1);
+        this.loadUsuarios();
       },
       error: () => {
         this.loading.set(false);
