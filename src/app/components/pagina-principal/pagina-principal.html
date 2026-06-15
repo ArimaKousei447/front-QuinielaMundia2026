@@ -2,267 +2,457 @@
   <div class="page-header">
     <div>
       <h1>Quiniela de Clasificados</h1>
-      <p *ngIf="userName()" class="welcome-text">Bienvenido, {{ userName() }}.</p>
+      @if (userName()) {
+        <p class="welcome-text">Bienvenido, {{ userName() }}.</p>
+      }
     </div>
-    <button type="button" class="logout-button" (click)="logout()">Cerrar sesión</button>
+    <div class="header-actions">
+      @if (userRole() === 2) {
+        <button type="button" class="admin-button" (click)="goAdmin()">Panel Admin</button>
+      }
+      <button type="button" class="logout-button" (click)="logout()">Cerrar sesión</button>
+    </div>
   </div>
 
-  <div class="notification-container" *ngIf="notification()">
-    <div class="notification" [class.success]="notification()?.type==='success'" [class.error]="notification()?.type==='error'">
-      {{ notification()?.message }}
+  @if (notification()) {
+    <div class="notification-container">
+      <div class="notification" [class.success]="notification()?.type==='success'" [class.error]="notification()?.type==='error'">
+        {{ notification()?.message }}
+      </div>
     </div>
-  </div>
+  }
 
-  <div *ngIf="loading()" class="status-message">Cargando equipos...</div>
+  @if (loading()) {
+    <div class="status-message">Cargando equipos...</div>
+  }
 
   <nav class="tabs">
     <button [class.active]="activeTab() === 'fases'" (click)="activeTab.set('fases')">Predicción por Fases</button>
     <button [class.active]="activeTab() === 'mis4'" (click)="activeTab.set('mis4')">Mis 4 Selecciones</button>
     <button [class.active]="activeTab() === 'clasificacion'" (click)="activeTab.set('clasificacion')">Tabla de Clasificaciones</button>
+    <button [class.active]="activeTab() === 'misPredicciones'" (click)="activeTab.set('misPredicciones')">Mis Predicciones</button>
   </nav>
 
   <!-- Pestaña: Predicción por Fases -->
-  <section *ngIf="activeTab() === 'fases'" class="tab-content">
-    <div class="fases-selector">
-      <div *ngFor="let fase of fases()" class="fase-chip" [class.selected]="isFaseSelected(fase)" (click)="selectFase(fase)">
-        {{ $any(fase).Nombre ?? $any(fase).nombre ?? $any(fase).name ?? ($any(fase).IdFase ?? $any(fase).id) }}
-      </div>
-      <div class="modalidad-badge" *ngIf="selectedModalidadId() !== null">
-        <span [class.closed]="modalidadIsClosed(selectedModalidadId())" [class.open]="!modalidadIsClosed(selectedModalidadId())">
-          {{ modalidadIsClosed(selectedModalidadId()) ? 'Cerrada' : 'Abierta' }}
-        </span>
-      </div>
-    </div>
-
-    <!-- Si la modalidad/fase seleccionada es Grupos (1) mostramos la vista existente -->
-    <div *ngIf="selectedModalidadId() === 1">
-      <div *ngIf="!loading() && groupNames().length === 0" class="status-message">No se encontraron equipos.</div>
-
-      <section *ngFor="let group of groupNames()" class="group-card">
-        <div class="group-header">
-          <div>
-            <h2>Grupo: {{ group }}</h2>
-            <p class="group-subtitle">Selecciona 2 clasificados y 1 mejor tercero por grupo</p>
+  @if (activeTab() === 'fases') {
+    <section class="tab-content">
+      <div class="fases-selector">
+        @for (fase of fases(); track fase.IdFase) {
+          <div class="fase-chip" [class.selected]="isFaseSelected(fase)" (click)="selectFase(fase)">
+            {{ fase.Nombre }}
           </div>
-          <div class="group-meta">
-            <span class="group-count">{{ selectedCount(group) }}/2 clasificados</span>
-            <span class="third-selected" *ngIf="groupHasThird(group)">3º seleccionado</span>
-          </div>
-        </div>
-
-        <div class="teams-grid">
-          <button
-            *ngFor="let equipo of grupos()[group]"
-            type="button"
-            class="team-card"
-            [class.selected]="isSelected(group, equipo.id)"
-            (click)="toggleTeam(group, equipo.id)"
-          >
-            <div class="team-flag" *ngIf="equipo.flagUrl || $any(equipo)['flag']">
-              <img [src]="equipo.flagUrl || $any(equipo)['flag']" [alt]="teamLabel(equipo)" />
-            </div>
-            <div class="team-info">
-              <div class="team-name">{{ teamLabel(equipo) }}</div>
-            </div>
-            <span
-              class="third-toggle"
-              role="button"
-              tabindex="0"
-              [class.selected]="isThirdSelected(equipo.id)"
-              [class.disabled]="!canToggleThird(group, equipo.id)"
-              [attr.aria-disabled]="!canToggleThird(group, equipo.id)"
-              (click)="$event.stopPropagation(); toggleThird(group, equipo.id)"
-            >
-              <span *ngIf="isThirdSelected(equipo.id)">✓ Tercero</span>
-              <span *ngIf="!isThirdSelected(equipo.id)">Marcar 3º</span>
+        }
+        @if (selectedModalidadId() !== null) {
+          <div class="modalidad-badge">
+            <span [class.closed]="modalidadIsClosed(selectedModalidadId())" [class.open]="!modalidadIsClosed(selectedModalidadId())">
+              {{ modalidadIsClosed(selectedModalidadId()) ? 'Cerrada' : 'Abierta' }}
             </span>
-          </button>
-        </div>
-      </section>
-
-      <div class="actions">
-        <div class="thirds-counter">Mejores terceros: {{ thirdCount() }}/8</div>
-        <button type="button" (click)="sendFasePredicciones()" [disabled]="!canSendFase() || sending() || modalidadIsClosed(selectedModalidadId())">
-          <span *ngIf="sending()">Enviando...</span>
-          <span *ngIf="!sending()">Enviar predicciones</span>
-        </button>
+          </div>
+        }
       </div>
-    </div>
 
-    <!-- Bracket para fases eliminatorias -->
-    <div *ngIf="selectedModalidadId() !== 1">
-      <div *ngIf="partidos().length === 0" class="status-message">Selecciona una fase para ver los partidos.</div>
-      <div class="bracket" *ngIf="partidos().length > 0">
-        <svg class="bracket-svg" preserveAspectRatio="none"></svg>
-        <div class="round-column" [class.prediction-column]="rIndex === 1" *ngFor="let round of (bracketRounds || []); let rIndex = index">
-          <h3 class="round-title">{{ roundLabels[rIndex] || ('Ronda ' + (rIndex + 1)) }}</h3>
-          <div *ngFor="let match of round; let mIndex = index" class="match-card" [attr.data-round]="rIndex" [attr.data-match]="mIndex" id="match-{{rIndex}}-{{mIndex}}">
-            <div class="team" [class.winner]="isRoundTeamWinner(rIndex, mIndex, match?.teamA?.id)">
-              <button *ngIf="match.teamA as teamA" type="button" (click)="selectWinnerRound(rIndex, mIndex, teamA)">
-                <span class="team-inline">
-                  <span class="team-flag small" *ngIf="teamA.flagUrl">
-                    <img [src]="teamA.flagUrl" [alt]="teamA.name" />
-                  </span>
-                  <span>{{ teamA.name }}</span>
-                </span>
-              </button>
-              <div *ngIf="!match.teamA">—</div>
-            </div>
-            <div class="team" [class.winner]="isRoundTeamWinner(rIndex, mIndex, match?.teamB?.id)">
-              <button *ngIf="match.teamB as teamB" type="button" (click)="selectWinnerRound(rIndex, mIndex, teamB)">
-                <span class="team-inline">
-                  <span class="team-flag small" *ngIf="teamB.flagUrl">
-                    <img [src]="teamB.flagUrl" [alt]="teamB.name" />
-                  </span>
-                  <span>{{ teamB.name }}</span>
-                </span>
-              </button>
-              <div *ngIf="!match.teamB">—</div>
-            </div>
+      <!-- Vista de Grupos (modalidad 1) -->
+      @if (selectedModalidadId() === 1) {
+        <div>
+          @if (!loading() && groupNames().length === 0) {
+            <div class="status-message">No se encontraron equipos.</div>
+          }
+
+          @for (group of groupNames(); track $index) {
+            <section class="group-card">
+              <div class="group-header">
+                <div>
+                  <h2>Grupo: {{ group }}</h2>
+                  <p class="group-subtitle">Selecciona 2 clasificados y 1 mejor tercero por grupo</p>
+                </div>
+                <div class="group-meta">
+                  <span class="group-count">{{ selectedCount(group) }}/2 clasificados</span>
+                  @if (groupHasThird(group)) {
+                    <span class="third-selected">3º seleccionado</span>
+                  }
+                </div>
+              </div>
+
+              <div class="teams-grid">
+                @for (equipo of grupos()[group]; track equipo.IdEquipo) {
+                  <button
+                    type="button"
+                    class="team-card"
+                    [class.selected]="isSelected(group, equipo.IdEquipo)"
+                    (click)="toggleTeam(group, equipo.IdEquipo)"
+                  >
+                    @if (equipo.flagUrl) {
+                      <div class="team-flag">
+                        <img [src]="equipo.flagUrl" [alt]="teamLabel(equipo)" />
+                      </div>
+                    }
+                    <div class="team-info">
+                      <div class="team-name">{{ teamLabel(equipo) }}</div>
+                    </div>
+                    <span
+                      class="third-toggle"
+                      role="button"
+                      tabindex="0"
+                      [class.selected]="isThirdSelected(equipo.IdEquipo)"
+                      [class.disabled]="!canToggleThird(group, equipo.IdEquipo)"
+                      [attr.aria-disabled]="!canToggleThird(group, equipo.IdEquipo)"
+                      (click)="$event.stopPropagation(); toggleThird(group, equipo.IdEquipo)"
+                    >
+                      @if (isThirdSelected(equipo.IdEquipo)) {
+                        <span>✓ Tercero</span>
+                      } @else {
+                        <span>Marcar 3º</span>
+                      }
+                    </span>
+                  </button>
+                }
+              </div>
+            </section>
+          }
+
+          <div class="actions">
+            <div class="thirds-counter">Mejores terceros: {{ thirdCount() }}/8</div>
+            <button type="button" (click)="sendFasePredicciones()" [disabled]="!canSendFase() || sending() || modalidadIsClosed(selectedModalidadId())">
+              @if (sending()) {
+                <span>Enviando...</span>
+              } @else {
+                <span>Enviar predicciones</span>
+              }
+            </button>
           </div>
         </div>
-      </div>
+      }
 
-      <div class="actions">
-        <button type="button" (click)="sendFasePredicciones()" [disabled]="!canSendFase() || sending() || modalidadIsClosed(selectedModalidadId())">
-          <span *ngIf="sending()">Enviando...</span>
-          <span *ngIf="!sending()">Enviar predicciones</span>
-        </button>
-      </div>
-    </div>
-  </section>
+      <!-- Bracket para fases eliminatorias -->
+      @if (selectedModalidadId() !== 1) {
+        <div>
+          @if (partidos().length === 0) {
+            <div class="status-message">Selecciona una fase para ver los partidos.</div>
+          }
+          @if (partidos().length > 0) {
+            <div class="bracket">
+              <svg class="bracket-svg" preserveAspectRatio="none"></svg>
+              @for (round of bracketRounds; track $index) {
+                <div class="round-column" [class.prediction-column]="$index === 1">
+                  <h3 class="round-title">{{ roundLabels[$index] || ('Ronda ' + ($index + 1)) }}</h3>
+                  @for (match of round; track $index) {
+                    <div class="match-card" [attr.data-round]="$index" [attr.data-match]="$index" id="match-{{$index}}-{{$index}}">
+                      <div class="team" [class.winner]="isRoundTeamWinner($index, $index, match?.teamA?.id)">
+                        @if (match.teamA; as teamA) {
+                          <button type="button" (click)="selectWinnerRound($index, $index, teamA)">
+                            <span class="team-inline">
+                              @if (teamA.flagUrl) {
+                                <span class="team-flag small">
+                                  <img [src]="teamA.flagUrl" [alt]="teamA.name" />
+                                </span>
+                              }
+                              <span>{{ teamA.name }}</span>
+                            </span>
+                          </button>
+                        } @else {
+                          <div>—</div>
+                        }
+                      </div>
+                      <div class="team" [class.winner]="isRoundTeamWinner($index, $index, match?.teamB?.id)">
+                        @if (match.teamB; as teamB) {
+                          <button type="button" (click)="selectWinnerRound($index, $index, teamB)">
+                            <span class="team-inline">
+                              @if (teamB.flagUrl) {
+                                <span class="team-flag small">
+                                  <img [src]="teamB.flagUrl" [alt]="teamB.name" />
+                                </span>
+                              }
+                              <span>{{ teamB.name }}</span>
+                            </span>
+                          </button>
+                        } @else {
+                          <div>—</div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          <div class="actions">
+            <button type="button" (click)="sendFasePredicciones()" [disabled]="!canSendFase() || sending() || modalidadIsClosed(selectedModalidadId())">
+              @if (sending()) {
+                <span>Enviando...</span>
+              } @else {
+                <span>Enviar predicciones</span>
+              }
+            </button>
+          </div>
+        </div>
+      }
+    </section>
+  }
 
   <!-- Pestaña: Clasificacion -->
-  <section *ngIf="activeTab() === 'clasificacion'" class="tab-content">
-    <div *ngIf="clasificacion().length === 0" class="status-message">No hay clasificaciones disponibles.</div>
-
-    <div *ngIf="clasificacion().length > 0" class="table-responsive">
-      <table class="clasificacion-table">
-        <thead>
-          <tr>
-            <th>Posición</th>
-            <th>Nombre</th>
-            <th>Puntos Totales</th>
-            <th>Puntos Grupos</th>
-            <th>Puntos Partidos</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let row of clasificacion()">
-            <td data-label="Posición">{{ row.Posicion ?? row.posicion }}</td>
-            <td data-label="Nombre">{{ row.Nombre ?? row.nombre ?? row.Name ?? '' }}</td>
-            <td data-label="Puntos Totales">{{ row.PuntosTotales ?? row.puntosTotales ?? 0 }}</td>
-            <td data-label="Puntos Grupos">{{ row.PuntosGrupos ?? row.puntosGrupos ?? 0 }}</td>
-            <td data-label="Puntos Partidos">{{ row.PuntosPartidos ?? row.puntosPartidos ?? 0 }}</td>
-            <td data-label="Acciones">
-              <button type="button" class="view-selections-button" (click)="openUserPredicciones(row)">Ver selecciones</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
+  @if (activeTab() === 'clasificacion') {
+    <section class="tab-content">
+      @if (clasificacion().length === 0) {
+        <div class="status-message">No hay clasificaciones disponibles.</div>
+      }
+      @if (clasificacion().length > 0) {
+        <div class="table-responsive">
+          <table class="clasificacion-table">
+            <thead>
+              <tr>
+                <th>Posición</th>
+                <th>Nombre</th>
+                <th>Puntos Totales</th>
+                <th>Puntos Grupos</th>
+                <th>Puntos Partidos</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of clasificacion(); track row.IdUsuario) {
+                <tr>
+                  <td data-label="Posición">{{ row.Posicion }}</td>
+                  <td data-label="Nombre">{{ row.Nombre }}</td>
+                  <td data-label="Puntos Totales">{{ row.PuntosTotales }}</td>
+                  <td data-label="Puntos Grupos">{{ row.PuntosGrupos }}</td>
+                  <td data-label="Puntos Partidos">{{ row.PuntosPartidos }}</td>
+                  <td data-label="Acciones">
+                    <button type="button" class="view-selections-button" (click)="openUserPredicciones(row)">Ver selecciones</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
 
   <!-- Pestaña: Mis 4 Selecciones -->
-  <section *ngIf="activeTab() === 'mis4'" class="tab-content">
-    <div class="four-selector-header">Selecciona exactamente 4 equipos ({{ selectedFour().length }}/4)</div>
-    <div class="teams-grid">
-      <button
-        *ngFor="let equipo of equipos()"
-        type="button"
-        class="team-card"
-        [class.selected]="selectedFour().includes(equipo.id)"
-        (click)="toggleFour(equipo.id)"
-        [disabled]="modalidadIsClosed(9) || (!selectedFour().includes(equipo.id) && selectedFour().length >= 4)"
-      >
-        <div class="team-flag" *ngIf="equipo.flagUrl || $any(equipo)['flag']">
-          <img [src]="equipo.flagUrl || $any(equipo)['flag']" [alt]="teamLabel(equipo)" />
-        </div>
-        <div class="team-name">{{ teamLabel(equipo) }}</div>
-      </button>
-    </div>
+  @if (activeTab() === 'mis4') {
+    <section class="tab-content">
+      <div class="four-selector-header">Selecciona exactamente 4 equipos ({{ selectedFour().length }}/4)</div>
+      <div class="teams-grid">
+        @for (equipo of equipos(); track equipo.IdEquipo) {
+          <button
+            type="button"
+            class="team-card"
+            [class.selected]="selectedFour().includes(equipo.IdEquipo)"
+            (click)="toggleFour(equipo.IdEquipo)"
+            [disabled]="modalidadIsClosed(9) || (!selectedFour().includes(equipo.IdEquipo) && selectedFour().length >= 4)"
+          >
+            @if (equipo.flagUrl) {
+              <div class="team-flag">
+                <img [src]="equipo.flagUrl" [alt]="teamLabel(equipo)" />
+              </div>
+            }
+            <div class="team-name">{{ teamLabel(equipo) }}</div>
+          </button>
+        }
+      </div>
 
-    <div class="actions">
-      <button type="button" (click)="sendMis4Predicciones()" [disabled]="selectedFour().length !== 4 || sending() || modalidadIsClosed(9)">
-        <span *ngIf="sending()">Enviando...</span>
-        <span *ngIf="!sending()">Enviar Mis 4 Selecciones</span>
-      </button>
-    </div>
-  </section>
+      <div class="actions">
+        <button type="button" (click)="sendMis4Predicciones()" [disabled]="selectedFour().length !== 4 || sending() || modalidadIsClosed(9)">
+          @if (sending()) {
+            <span>Enviando...</span>
+          } @else {
+            <span>Enviar Mis 4 Selecciones</span>
+          }
+        </button>
+      </div>
+    </section>
+  }
+  <!-- Pestaña: Mis Predicciones -->
+  @if (activeTab() === 'misPredicciones') {
+    <section class="tab-content">
+      <div class="mis-pred-header">
+        <h2>Mis predicciones</h2>
+        <button type="button" class="btn-reload" (click)="recargarMisPredicciones()" [disabled]="misPrediccionesLoading()">
+          Actualizar
+        </button>
+      </div>
+
+      @if (misPrediccionesLoading()) {
+        <div class="status-message">Cargando tus predicciones...</div>
+      }
+      @if (misPrediccionesError()) {
+        <div class="status-message error">{{ misPrediccionesError() }}</div>
+      }
+
+      @if (!misPrediccionesLoading() && misPrediccionesCargadas()) {
+
+        <div class="mis-pred-section">
+          <h3>Clasificados de grupos y mis 4</h3>
+          @if (misPrediccionesEquipos().length === 0) {
+            <div class="status-message">Aún no tienes predicciones de equipos registradas.</div>
+          }
+          @for (p of misPrediccionesEquipos(); track p.IdPrediccion) {
+            <div class="pred-card" [class.visible]="isPredictionVisibleByModalidad(p)">
+              <div class="pred-card-header">
+                <div class="pred-info">
+                  <span class="pred-modalidad">{{ p.NombreModalidad }}</span>
+                  <span class="pred-fase">{{ p.NombreFase }}</span>
+                </div>
+                <span class="pred-status" [class.closed]="isPredictionVisibleByModalidad(p)" [class.open]="!isPredictionVisibleByModalidad(p)">
+                  {{ isPredictionVisibleByModalidad(p) ? 'Cerrada' : 'Abierta' }}
+                </span>
+              </div>
+              @if (isPredictionVisibleByModalidad(p)) {
+                <div class="pred-card-body">
+                  <div class="pred-equipo">
+                    <strong>{{ p.NombreEquipo }}</strong>
+                    @if (p.Grupo) { <span class="pred-grupo">Grupo {{ p.Grupo }}</span> }
+                    @if (p.EsMejorTercero) { <span class="pred-tercero">Mejor tercero</span> }
+                  </div>
+                  <div class="pred-puntos" [class.positivo]="p.PuntosGanados > 0">
+                    {{ p.PuntosGanados }} pts
+                  </div>
+                </div>
+              } @else {
+                <div class="pred-card-body locked">
+                  <span>Selección oculta hasta el cierre de la modalidad</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="mis-pred-section">
+          <h3>Predicciones de partidos</h3>
+          @if (misPrediccionesPartidos().length === 0) {
+            <div class="status-message">Aún no tienes predicciones de partidos registradas.</div>
+          }
+          @for (p of misPrediccionesPartidos(); track p.IdPrediccion) {
+            <div class="pred-card" [class.visible]="isPredictionVisibleByModalidad(p)">
+              <div class="pred-card-header">
+                <div class="pred-info">
+                  <span class="pred-modalidad">{{ p.NombreModalidad }}</span>
+                  <span class="pred-fase">{{ p.NombreFase }} — {{ p.Equipo1 }} vs {{ p.Equipo2 }}</span>
+                </div>
+                <span class="pred-status" [class.closed]="isPredictionVisibleByModalidad(p)" [class.open]="!isPredictionVisibleByModalidad(p)">
+                  {{ isPredictionVisibleByModalidad(p) ? 'Cerrada' : 'Abierta' }}
+                </span>
+              </div>
+              @if (isPredictionVisibleByModalidad(p)) {
+                <div class="pred-card-body">
+                  <div class="pred-equipo">
+                    <span>Mi predicción: <strong>{{ p.PrediccionGanador }}</strong></span>
+                    <span class="pred-real">
+                      Real: {{ p.GanadorReal ?? 'Pendiente' }}
+                    </span>
+                  </div>
+                  <div class="pred-puntos" [class.positivo]="p.PuntosGanados > 0">
+                    {{ p.PuntosGanados }} pts
+                  </div>
+                </div>
+              } @else {
+                <div class="pred-card-body locked">
+                  <span>Predicción oculta hasta el cierre de la modalidad</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+      }
+    </section>
+  }
 </div>
 
 <!-- Modal de predicciones de usuario -->
-<div class="modal-backdrop" *ngIf="showModalPredicciones()">
-  <div class="modal">
-    <header class="modal-header">
-      <h3>Selecciones de {{ modalUser()?.Nombre ?? modalUser()?.nombre ?? modalUser()?.Name ?? '' }}</h3>
-      <button type="button" class="close" (click)="closeModalPredicciones()">✕</button>
-    </header>
+@if (showModalPredicciones()) {
+  <div class="modal-backdrop">
+    <div class="modal">
+      <header class="modal-header">
+        <h3>Selecciones de {{ modalUser()?.Nombre ?? '' }}</h3>
+        <button type="button" class="close" (click)="closeModalPredicciones()">✕</button>
+      </header>
 
-    <div class="modal-body">
-      <div *ngIf="modalLoading()" class="status-message">Cargando predicciones...</div>
-      <div *ngIf="modalError()" class="status-message error">{{ modalError() }}</div>
+      <div class="modal-body">
+        @if (modalLoading()) {
+          <div class="status-message">Cargando predicciones...</div>
+        }
+        @if (modalError()) {
+          <div class="status-message error">{{ modalError() }}</div>
+        }
 
-      <section *ngIf="!modalLoading()">
-        <div class="modal-summary">
-          <span>{{ modalPredEquipos().length }} modalidades de equipos</span>
-          <span>{{ modalPredPartidos().length }} predicciones de partidos</span>
-        </div>
-
-        <h4>Predicciones por modalidad (equipos)</h4>
-        <div *ngIf="modalPredEquipos().length === 0" class="status-message">No hay predicciones de equipos para este usuario.</div>
-        <div *ngFor="let m of modalPredEquipos()" class="modalidad-card">
-          <div class="modalidad-header">
-            <div>
-              <strong>{{ m.NombreModalidad ?? m.nombreModalidad ?? m.Nombre ?? '' }}</strong>
-              <div class="modalidad-meta">Cierre: {{ m.fechaDeCierre ?? '—' }}</div>
+        @if (!modalLoading()) {
+          <section>
+            <div class="modal-summary">
+              <span>{{ modalPredEquipos().length }} modalidades de equipos</span>
+              <span>{{ modalPredPartidos().length }} predicciones de partidos</span>
             </div>
-            <span class="status" [class.closed]="isFechaCerrada(m.fechaDeCierre)" [class.open]="!isFechaCerrada(m.fechaDeCierre)">
-              {{ isFechaCerrada(m.fechaDeCierre) ? 'Cerrada' : 'Abierta' }}
-            </span>
-          </div>
 
-          <div *ngIf="isFechaCerrada(m.fechaDeCierre); else openEquipoBlock" class="modalidad-content">
-            <ul>
-              <li *ngFor="let e of m.equipos" class="modal-equipo-item">
-                <span>{{ e.NombreEquipo ?? e.Nombre ?? e.name }}</span>
-                <small>Puntos: {{ e.PuntosGanados ?? 0 }}</small>
-              </li>
-            </ul>
-          </div>
-          <ng-template #openEquipoBlock>
-            <div class="status-message">Esta modalidad aún está abierta. No se pueden ver las selecciones.</div>
-          </ng-template>
-        </div>
+            <h4>Predicciones por modalidad (equipos)</h4>
+            @if (modalPredEquipos().length === 0) {
+              <div class="status-message">No hay predicciones de equipos para este usuario.</div>
+            }
+            @for (m of modalPredEquipos(); track m.IdPrediccion) {
+              <div class="modalidad-card">
+                <div class="modalidad-header">
+                  <div>
+                    <strong>{{ m.NombreModalidad }}</strong>
+                    <div class="modalidad-meta">Cierre: {{ m.fechaDeCierre ?? '—' }}</div>
+                  </div>
+                  <span class="status" [class.closed]="isFechaCerrada(m.fechaDeCierre)" [class.open]="!isFechaCerrada(m.fechaDeCierre)">
+                    {{ isFechaCerrada(m.fechaDeCierre) ? 'Cerrada' : 'Abierta' }}
+                  </span>
+                </div>
 
-        <h4>Predicciones por partido</h4>
-        <div *ngIf="modalPredPartidos().length === 0" class="status-message">No hay predicciones de partidos para este usuario.</div>
-        <div *ngFor="let p of modalPredPartidos()" class="modalidad-card">
-          <div class="modalidad-header">
-            <div>
-              <strong>{{ p.NombreFase ?? p.NombreModalidad ?? 'Partido' }}</strong>
-              <div class="modalidad-meta">{{ p.Equipo1 }} vs {{ p.Equipo2 }}</div>
-            </div>
-            <span class="status" [class.closed]="isPredictionVisibleByModalidad(p)" [class.open]="!isPredictionVisibleByModalidad(p)">
-              {{ isPredictionVisibleByModalidad(p) ? 'Cerrada' : 'Abierta' }}
-            </span>
-          </div>
+                @if (isFechaCerrada(m.fechaDeCierre)) {
+                  <div class="modalidad-content">
+                    <ul>
+                      @for (e of [m]; track e.IdPrediccion) {
+                        <li class="modal-equipo-item">
+                          <span>{{ e.NombreEquipo }}</span>
+                          <small>Puntos: {{ e.PuntosGanados }}</small>
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                } @else {
+                  <div class="status-message">Esta modalidad aún está abierta. No se pueden ver las selecciones.</div>
+                }
+              </div>
+            }
 
-          <div *ngIf="isPredictionVisibleByModalidad(p); else openPartidoBlock" class="modalidad-content">
-            <div class="modal-partido-row">
-              <span>Predicción: {{ p.PrediccionGanador ?? p.Prediccion ?? 'N/A' }}</span>
-              <span>Resultado real: {{ p.GanadorReal ?? 'Pendiente' }}</span>
-            </div>
-            <div class="modal-partido-row">
-              <span>Puntos ganados: {{ p.PuntosGanados ?? 0 }}</span>
-            </div>
-          </div>
-          <ng-template #openPartidoBlock>
-            <div class="status-message">Esta modalidad aún está abierta. No se pueden ver las selecciones de partido.</div>
-          </ng-template>
-        </div>
-      </section>
+            <h4>Predicciones por partido</h4>
+            @if (modalPredPartidos().length === 0) {
+              <div class="status-message">No hay predicciones de partidos para este usuario.</div>
+            }
+            @for (p of modalPredPartidos(); track p.IdPrediccion) {
+              <div class="modalidad-card">
+                <div class="modalidad-header">
+                  <div>
+                    <strong>{{ p.NombreFase }}</strong>
+                    <div class="modalidad-meta">{{ p.Equipo1 }} vs {{ p.Equipo2 }}</div>
+                  </div>
+                  <span class="status" [class.closed]="isPredictionVisibleByModalidad(p)" [class.open]="!isPredictionVisibleByModalidad(p)">
+                    {{ isPredictionVisibleByModalidad(p) ? 'Cerrada' : 'Abierta' }}
+                  </span>
+                </div>
+
+                @if (isPredictionVisibleByModalidad(p)) {
+                  <div class="modalidad-content">
+                    <div class="modal-partido-row">
+                      <span>Predicción: {{ p.PrediccionGanador }}</span>
+                      <span>Resultado real: {{ p.GanadorReal ?? 'Pendiente' }}</span>
+                    </div>
+                    <div class="modal-partido-row">
+                      <span>Puntos ganados: {{ p.PuntosGanados }}</span>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="status-message">Esta modalidad aún está abierta. No se pueden ver las selecciones de partido.</div>
+                }
+              </div>
+            }
+          </section>
+        }
+      </div>
     </div>
   </div>
-</div>
+}
+
+<!-- ✓ Fix aplicado — pagina-principal.html -->

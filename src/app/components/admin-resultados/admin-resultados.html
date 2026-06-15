@@ -1,0 +1,145 @@
+<div class="admin-page">
+  <header class="admin-header">
+    <div class="header-left">
+      <span class="admin-badge">ADMIN</span>
+      <h1>Panel de Resultados</h1>
+    </div>
+    <div class="header-actions">
+      <button class="btn-secondary" (click)="goHome()">Ir al inicio</button>
+      <button class="btn-danger" (click)="logout()">Cerrar sesión</button>
+    </div>
+  </header>
+
+  @if (notification()) {
+    <div class="notification" [class.success]="notification()!.type === 'success'" [class.error]="notification()!.type === 'error'">
+      {{ notification()!.message }}
+    </div>
+  }
+
+  <nav class="section-tabs">
+    <button [class.active]="activeSection() === 'partido'" (click)="activeSection.set('partido')">
+      Partido eliminatorio
+    </button>
+    <button [class.active]="activeSection() === 'grupos'" (click)="activeSection.set('grupos')">
+      Clasificados de grupo
+    </button>
+    <button [class.active]="activeSection() === 'consolidar'" (click)="activeSection.set('consolidar')">
+      Consolidar puntos
+    </button>
+  </nav>
+
+  <div class="section-content">
+
+    @if (activeSection() === 'partido') {
+      <div class="section-card">
+        <h2>Registrar resultado de partido eliminatorio</h2>
+        <p class="section-desc">Selecciona el partido y el equipo ganador. Se asignarán los puntos automáticamente.</p>
+
+        <div class="form-group">
+          <label>Partido</label>
+          @if (loadingPartidos()) {
+            <p class="loading-text">Cargando partidos...</p>
+          } @else {
+            <select [ngModel]="selectedPartidoId()" (ngModelChange)="onPartidoChange($event)" name="partido">
+              <option [ngValue]="null">-- Selecciona un partido --</option>
+              @for (p of partidos(); track p.IdPartido) {
+                <option [ngValue]="p.IdPartido">
+                  {{ p.NombreFase }} — {{ p.Equipo1 }} vs {{ p.Equipo2 }}
+                  @if (p.IdGanador) { (Ya tiene resultado) }
+                </option>
+              }
+            </select>
+          }
+        </div>
+
+        @if (selectedPartido()) {
+          <div class="form-group">
+            <label>Ganador</label>
+            <div class="team-options">
+              <button
+                class="team-btn"
+                [class.selected]="selectedGanadorId() === selectedPartido()!.IdEquipo1"
+                (click)="selectedGanadorId.set(selectedPartido()!.IdEquipo1)"
+                [disabled]="loading()"
+              >
+                {{ selectedPartido()!.Equipo1 }}
+              </button>
+              <button
+                class="team-btn"
+                [class.selected]="selectedGanadorId() === selectedPartido()!.IdEquipo2"
+                (click)="selectedGanadorId.set(selectedPartido()!.IdEquipo2)"
+                [disabled]="loading()"
+              >
+                {{ selectedPartido()!.Equipo2 }}
+              </button>
+            </div>
+          </div>
+        }
+
+        <button class="btn-primary" (click)="registrarResultadoPartido()" [disabled]="loading() || !selectedPartidoId() || !selectedGanadorId()">
+          @if (loading()) { Guardando... } @else { Registrar resultado }
+        </button>
+      </div>
+    }
+
+    @if (activeSection() === 'grupos') {
+      <div class="section-card">
+        <h2>Registrar clasificados de fase de grupos</h2>
+        <p class="section-desc">Selecciona el grupo y los dos equipos que clasifican a la siguiente fase.</p>
+
+        <div class="form-group">
+          <label>Grupo</label>
+          <select [ngModel]="grupoNombre()" (ngModelChange)="grupoNombre.set($event); grupo1erEquipoId.set(null); grupo2doEquipoId.set(null)" name="grupo">
+            <option value="">-- Selecciona un grupo --</option>
+            @for (g of gruposDisponibles(); track g) {
+              <option [value]="g">Grupo {{ g }}</option>
+            }
+          </select>
+        </div>
+
+        @if (grupoNombre()) {
+          <div class="form-group">
+            <label>1er clasificado</label>
+            <select [ngModel]="grupo1erEquipoId()" (ngModelChange)="grupo1erEquipoId.set(+$event || null)" name="eq1">
+              <option [ngValue]="null">-- Selecciona equipo --</option>
+              @for (e of equiposDelGrupo(); track e.IdEquipo) {
+                <option [ngValue]="e.IdEquipo">{{ e.Nombre }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>2do clasificado</label>
+            <select [ngModel]="grupo2doEquipoId()" (ngModelChange)="grupo2doEquipoId.set(+$event || null)" name="eq2">
+              <option [ngValue]="null">-- Selecciona equipo --</option>
+              @for (e of equiposDelGrupo(); track e.IdEquipo) {
+                <option [ngValue]="e.IdEquipo">{{ e.Nombre }}</option>
+              }
+            </select>
+          </div>
+        }
+
+        <button class="btn-primary" (click)="registrarResultadosGrupos()" [disabled]="loading() || !grupoNombre() || !grupo1erEquipoId() || !grupo2doEquipoId()">
+          @if (loading()) { Guardando... } @else { Registrar clasificados }
+        </button>
+      </div>
+    }
+
+    @if (activeSection() === 'consolidar') {
+      <div class="section-card">
+        <h2>Consolidar puntos totales</h2>
+        <p class="section-desc">
+          Recalcula los puntos totales de todos los usuarios desde cero combinando puntos de grupos y partidos.
+          Úsalo después de registrar resultados masivos o cuando la clasificación no esté actualizada.
+        </p>
+        <div class="warning-box">
+          Esta operación recalcula TODOS los puntos. Se recomienda ejecutarla solo cuando sea necesario.
+        </div>
+        <button class="btn-warning" (click)="consolidarPuntos()" [disabled]="loading()">
+          @if (loading()) { Procesando... } @else { Consolidar puntos ahora }
+        </button>
+      </div>
+    }
+
+  </div>
+</div>

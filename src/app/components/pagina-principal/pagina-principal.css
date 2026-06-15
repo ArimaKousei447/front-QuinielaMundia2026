@@ -672,3 +672,166 @@ h1 {
   background: rgba(15, 23, 42, 0.08);
   color: #0f1724;
 }
+
+/* Header actions */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.admin-button {
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  border: none;
+  background: #f59e0b;
+  color: #000;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.admin-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(245, 158, 11, 0.3);
+}
+
+/* Grupo meta */
+.group-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+}
+.third-selected {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0d9488;
+  background: rgba(13, 148, 136, 0.1);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* Mis predicciones tab */
+.mis-pred-header {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+.mis-pred-header h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0;
+}
+.btn-reload {
+  background: rgba(15, 23, 42, 0.07);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 999px;
+  color: #334155;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.45rem 1rem;
+  transition: background 0.2s;
+}
+.btn-reload:hover:not(:disabled) { background: rgba(15, 23, 42, 0.12); }
+.btn-reload:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.mis-pred-section {
+  margin-bottom: 2rem;
+}
+.mis-pred-section h3 {
+  color: #0f1724;
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 0 0 0.75rem;
+}
+
+.pred-card {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+.pred-card-header {
+  align-items: center;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.7rem 1rem;
+}
+.pred-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.pred-modalidad {
+  color: #0f1724;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.pred-fase {
+  color: #475569;
+  font-size: 0.82rem;
+}
+.pred-status {
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+.pred-status.open { background: rgba(0, 200, 83, 0.1); color: #007a3a; }
+.pred-status.closed { background: rgba(220, 38, 38, 0.08); color: #991b1b; }
+
+.pred-card-body {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+}
+.pred-card-body.locked {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+.pred-equipo {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.pred-grupo {
+  background: rgba(37, 99, 235, 0.1);
+  border-radius: 999px;
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+.pred-tercero {
+  background: rgba(13, 148, 136, 0.1);
+  border-radius: 999px;
+  color: #0d9488;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+.pred-real {
+  color: #475569;
+  font-size: 0.85rem;
+  margin-left: 0.25rem;
+}
+.pred-puntos {
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pred-puntos.positivo { color: #059669; }

@@ -1,0 +1,72 @@
+<div class="change-password-page">
+  <div class="change-password-card">
+    <div class="card-header">
+      <div class="lock-icon">🔒</div>
+      <h2>Cambio de contraseña requerido</h2>
+      @if (usuarioNombre) {
+        <p class="subtitle">Hola <strong>{{ usuarioNombre }}</strong>, debes crear una contraseña personal antes de continuar.</p>
+      } @else {
+        <p class="subtitle">Crea tu contraseña personal para acceder al sistema.</p>
+      }
+    </div>
+
+    <form (ngSubmit)="submit()" class="change-form">
+      <div class="field">
+        <label for="contrasenaActual">Contraseña actual (temporal)</label>
+        <input
+          id="contrasenaActual"
+          type="password"
+          placeholder="Tu contraseña temporal"
+          [ngModel]="contrasenaActual()"
+          (ngModelChange)="contrasenaActual.set($event)"
+          name="contrasenaActual"
+          autocomplete="current-password"
+          [disabled]="loading()"
+        />
+      </div>
+
+      <div class="field">
+        <label for="contrasenaNueva">Nueva contraseña</label>
+        <input
+          id="contrasenaNueva"
+          type="password"
+          placeholder="Mínimo 6 caracteres"
+          [ngModel]="contrasenaNueva()"
+          (ngModelChange)="contrasenaNueva.set($event)"
+          name="contrasenaNueva"
+          autocomplete="new-password"
+          [disabled]="loading()"
+        />
+      </div>
+
+      <div class="field">
+        <label for="confirmarContrasena">Confirmar nueva contraseña</label>
+        <input
+          id="confirmarContrasena"
+          type="password"
+          placeholder="Repite la nueva contraseña"
+          [ngModel]="confirmarContrasena()"
+          (ngModelChange)="confirmarContrasena.set($event)"
+          name="confirmarContrasena"
+          autocomplete="new-password"
+          [disabled]="loading()"
+        />
+      </div>
+
+      @if (error()) {
+        <div class="alert alert-error">{{ error() }}</div>
+      }
+      @if (success()) {
+        <div class="alert alert-success">{{ success() }} Redirigiendo...</div>
+      }
+
+      <button type="submit" class="btn-submit" [disabled]="loading()">
+        @if (loading()) {
+          Guardando...
+        } @else {
+          Cambiar contraseña
+        }
+      </button>
+    </form>
+  </div>
+</div>

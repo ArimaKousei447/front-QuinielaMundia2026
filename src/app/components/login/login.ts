@@ -37,11 +37,19 @@ export class Login {
     this.loading.set(true);
     this.error.set(undefined);
     this.auth.login(this.email(), this.contrasena()).subscribe({
-      next: () => {
+      next: (response) => {
         this.loading.set(false);
-        this.router.navigateByUrl('/home');
+        if (response.hasError) {
+          this.error.set(response.errors?.[0]?.descripcion ?? 'Error en inicio de sesión');
+          return;
+        }
+        if (response.data?.primerLogin) {
+          this.router.navigateByUrl('/cambiar-password');
+        } else {
+          this.router.navigateByUrl('/home');
+        }
       },
-      error: (err) => {
+      error: (err: { error?: { message?: string } }) => {
         this.loading.set(false);
         this.error.set(err?.error?.message ?? 'Error en inicio de sesión');
       },
@@ -49,17 +57,6 @@ export class Login {
   }
 
   submitRegister(): void {
-    this.loading.set(true);
-    this.error.set(undefined);
-    this.auth.registrar(this.nombre(), this.regEmail(), this.regContrasena()).subscribe({
-      next: () => {
-        this.loading.set(false);
-        this.isRegister.set(false);
-      },
-      error: (err) => {
-        this.loading.set(false);
-        this.error.set(err?.error?.message ?? 'Error en registro');
-      },
-    });
+    this.error.set('El registro de usuarios no está disponible en este momento.');
   }
 }
