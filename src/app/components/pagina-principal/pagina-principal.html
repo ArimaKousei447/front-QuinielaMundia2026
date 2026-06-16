@@ -193,37 +193,50 @@
   <!-- Pestaña: Clasificacion -->
   @if (activeTab() === 'clasificacion') {
     <section class="tab-content">
+      <div class="lb-section-header">
+        <h2>Tabla de clasificaciones</h2>
+        <button type="button" class="btn-reload" (click)="loadClasificacion()" [disabled]="loading()">
+          Actualizar
+        </button>
+      </div>
+
       @if (clasificacion().length === 0) {
         <div class="status-message">No hay clasificaciones disponibles.</div>
-      }
-      @if (clasificacion().length > 0) {
-        <div class="table-responsive">
-          <table class="clasificacion-table">
-            <thead>
-              <tr>
-                <th>Posición</th>
-                <th>Nombre</th>
-                <th>Puntos Totales</th>
-                <th>Puntos Grupos</th>
-                <th>Puntos Partidos</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (row of clasificacion(); track row.IdUsuario) {
-                <tr>
-                  <td data-label="Posición">{{ row.Posicion }}</td>
-                  <td data-label="Nombre">{{ row.Nombre }}</td>
-                  <td data-label="Puntos Totales">{{ row.PuntosTotales }}</td>
-                  <td data-label="Puntos Grupos">{{ row.PuntosGrupos }}</td>
-                  <td data-label="Puntos Partidos">{{ row.PuntosPartidos }}</td>
-                  <td data-label="Acciones">
-                    <button type="button" class="view-selections-button" (click)="openUserPredicciones(row)">Ver selecciones</button>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+      } @else {
+        <div class="leaderboard">
+          @for (row of clasificacion(); track row.IdUsuario) {
+            <div class="lb-row" [class.lb-me]="row.IdUsuario === userId()">
+              <div class="lb-rank"
+                [class.gold]="row.Posicion === 1"
+                [class.silver]="row.Posicion === 2"
+                [class.bronze]="row.Posicion === 3">
+                {{ row.Posicion }}
+              </div>
+
+              <div class="lb-info">
+                <div class="lb-name-row">
+                  <span class="lb-name">{{ row.Nombre }}</span>
+                  @if (row.IdUsuario === userId()) {
+                    <span class="you-badge">Tú</span>
+                  }
+                </div>
+                <div class="lb-breakdown">
+                  <span>Grupos: <strong>{{ row.PuntosGrupos }}</strong></span>
+                  <span class="lb-sep">·</span>
+                  <span>Partidos: <strong>{{ row.PuntosPartidos }}</strong></span>
+                </div>
+              </div>
+
+              <div class="lb-points">
+                <span class="lb-total">{{ row.PuntosTotales }}</span>
+                <span class="lb-pts-label">pts</span>
+              </div>
+
+              <button type="button" class="lb-ver-btn" (click)="openUserPredicciones(row)">
+                Ver predicciones
+              </button>
+            </div>
+          }
         </div>
       }
     </section>
@@ -282,77 +295,86 @@
 
       @if (!misPrediccionesLoading() && misPrediccionesCargadas()) {
 
-        <div class="mis-pred-section">
-          <h3>Clasificados de grupos y mis 4</h3>
-          @if (misPrediccionesEquipos().length === 0) {
-            <div class="status-message">Aún no tienes predicciones de equipos registradas.</div>
-          }
-          @for (p of misPrediccionesEquipos(); track p.IdPrediccion) {
-            <div class="pred-card" [class.visible]="isPredictionVisibleByModalidad(p)">
-              <div class="pred-card-header">
-                <div class="pred-info">
-                  <span class="pred-modalidad">{{ p.NombreModalidad }}</span>
-                </div>
-                <span class="pred-status" [class.closed]="isPredictionVisibleByModalidad(p)" [class.open]="!isPredictionVisibleByModalidad(p)">
-                  {{ isPredictionVisibleByModalidad(p) ? 'Cerrada' : 'Abierta' }}
-                </span>
-              </div>
-              @if (isPredictionVisibleByModalidad(p)) {
-                <div class="pred-card-body">
-                  <div class="pred-equipo">
-                    <strong>{{ p.NombreEquipo }}</strong>
-                    @if (p.Grupo) { <span class="pred-grupo">Grupo {{ p.Grupo }}</span> }
-                    @if (p.EsMejorTercero) { <span class="pred-tercero">Mejor tercero</span> }
-                  </div>
-                  <div class="pred-puntos" [class.positivo]="p.PuntosGanados > 0">
-                    {{ p.PuntosGanados }} pts
-                  </div>
-                </div>
-              } @else {
-                <div class="pred-card-body locked">
-                  <span>Selección oculta hasta el cierre de la modalidad</span>
-                </div>
-              }
-            </div>
-          }
-        </div>
+        @if (misGroupedEquipos().length === 0 && misGroupedPartidos().length === 0) {
+          <div class="status-message">Aún no tienes predicciones registradas.</div>
+        }
 
-        <div class="mis-pred-section">
-          <h3>Predicciones de partidos</h3>
-          @if (misPrediccionesPartidos().length === 0) {
-            <div class="status-message">Aún no tienes predicciones de partidos registradas.</div>
-          }
-          @for (p of misPrediccionesPartidos(); track p.IdPrediccion) {
-            <div class="pred-card" [class.visible]="isPredictionVisibleByModalidad(p)">
-              <div class="pred-card-header">
-                <div class="pred-info">
-                  <span class="pred-modalidad">{{ p.NombreModalidad }}</span>
-                  <span class="pred-fase">{{ p.Equipo1 }} vs {{ p.Equipo2 }}</span>
+        @if (misGroupedEquipos().length > 0) {
+          <div class="mis-pred-section">
+            <h3>Clasificados de grupos y mis 4</h3>
+            @for (group of misGroupedEquipos(); track group.idModalidad) {
+              <div class="pred-group-card">
+                <div class="pred-group-header">
+                  <div class="pred-group-title">
+                    <span class="pred-modalidad-name">{{ group.nombreModalidad }}</span>
+                    <span class="pred-count-badge">{{ group.items.length }} equipo{{ group.items.length !== 1 ? 's' : '' }}</span>
+                  </div>
+                  <span class="pred-status" [class.open]="!isFechaCerrada(group.fechaDeCierre)" [class.closed]="isFechaCerrada(group.fechaDeCierre)">
+                    {{ isFechaCerrada(group.fechaDeCierre) ? 'Cerrada' : 'Abierta' }}
+                  </span>
                 </div>
-                <span class="pred-status" [class.closed]="isPredictionVisibleByModalidad(p)" [class.open]="!isPredictionVisibleByModalidad(p)">
-                  {{ isPredictionVisibleByModalidad(p) ? 'Cerrada' : 'Abierta' }}
-                </span>
+                <div class="pred-group-items">
+                  @for (e of group.items; track e.IdPrediccion) {
+                    <div class="pred-team-row" [class.tercero]="e.EsMejorTercero">
+                      <img class="pred-flag" [src]="getFlagUrl(e.CodigoISO)" [alt]="e.NombreEquipo" />
+                      <span class="pred-team-name">{{ e.NombreEquipo }}</span>
+                      <div class="pred-badges">
+                        @if (e.Grupo) {
+                          <span class="pred-grupo">Grupo {{ e.Grupo }}</span>
+                        }
+                        @if (e.EsMejorTercero) {
+                          <span class="pred-tercero">Mejor 3°</span>
+                        }
+                      </div>
+                      <div class="pred-pts" [class.positivo]="e.PuntosGanados > 0">
+                        {{ e.PuntosGanados > 0 ? '+' : '' }}{{ e.PuntosGanados }} pts
+                      </div>
+                    </div>
+                  }
+                </div>
               </div>
-              @if (isPredictionVisibleByModalidad(p)) {
-                <div class="pred-card-body">
-                  <div class="pred-equipo">
-                    <span>Mi predicción: <strong>{{ p.PrediccionGanador }}</strong></span>
-                    <span class="pred-real">
-                      Real: {{ p.GanadorReal ?? 'Pendiente' }}
-                    </span>
+            }
+          </div>
+        }
+
+        @if (misGroupedPartidos().length > 0) {
+          <div class="mis-pred-section">
+            <h3>Predicciones de partidos</h3>
+            @for (group of misGroupedPartidos(); track group.idModalidad) {
+              <div class="pred-group-card">
+                <div class="pred-group-header">
+                  <div class="pred-group-title">
+                    <span class="pred-modalidad-name">{{ group.nombreModalidad }}</span>
+                    <span class="pred-count-badge">{{ group.items.length }} partido{{ group.items.length !== 1 ? 's' : '' }}</span>
                   </div>
-                  <div class="pred-puntos" [class.positivo]="p.PuntosGanados > 0">
-                    {{ p.PuntosGanados }} pts
-                  </div>
+                  <span class="pred-status" [class.open]="!isFechaCerrada(group.fechaDeCierre)" [class.closed]="isFechaCerrada(group.fechaDeCierre)">
+                    {{ isFechaCerrada(group.fechaDeCierre) ? 'Cerrada' : 'Abierta' }}
+                  </span>
                 </div>
-              } @else {
-                <div class="pred-card-body locked">
-                  <span>Predicción oculta hasta el cierre de la modalidad</span>
+                <div class="pred-group-items">
+                  @for (p of group.items; track p.IdPrediccion) {
+                    <div class="pred-partido-row">
+                      <div class="pred-partido-matchup">
+                        <img class="pred-flag-sm" [src]="getFlagUrl(p.CodigoISO1)" [alt]="p.Equipo1" />
+                        <span class="pred-eq-name">{{ p.Equipo1 }}</span>
+                        <span class="pred-vs">vs</span>
+                        <img class="pred-flag-sm" [src]="getFlagUrl(p.CodigoISO2)" [alt]="p.Equipo2" />
+                        <span class="pred-eq-name">{{ p.Equipo2 }}</span>
+                      </div>
+                      <div class="pred-partido-result">
+                        <span class="pred-winner-label">Pred: <strong>{{ p.PrediccionGanador }}</strong></span>
+                        <span class="pred-real-label">Real: {{ p.GanadorReal ?? 'Pendiente' }}</span>
+                        <div class="pred-pts" [class.positivo]="p.PuntosGanados > 0">
+                          {{ p.PuntosGanados > 0 ? '+' : '' }}{{ p.PuntosGanados }} pts
+                        </div>
+                      </div>
+                    </div>
+                  }
                 </div>
-              }
-            </div>
-          }
-        </div>
+              </div>
+            }
+          </div>
+        }
 
       }
     </section>
@@ -361,10 +383,16 @@
 
 <!-- Modal de predicciones de usuario -->
 @if (showModalPredicciones()) {
-  <div class="modal-backdrop">
-    <div class="modal">
+  <div class="modal-backdrop" (click)="closeModalPredicciones()">
+    <div class="modal" (click)="$event.stopPropagation()">
       <header class="modal-header">
-        <h3>Selecciones de {{ modalUser()?.Nombre ?? '' }}</h3>
+        <div class="modal-title-block">
+          <h3>Selecciones de {{ modalUser()?.Nombre ?? '' }}</h3>
+          <div class="modal-chips">
+            <span class="modal-chip">{{ modalGroupedEquipos().length }} fase{{ modalGroupedEquipos().length !== 1 ? 's' : '' }} equipos</span>
+            <span class="modal-chip">{{ modalGroupedPartidos().length }} fase{{ modalGroupedPartidos().length !== 1 ? 's' : '' }} partidos</span>
+          </div>
+        </div>
         <button type="button" class="close" (click)="closeModalPredicciones()">✕</button>
       </header>
 
@@ -376,82 +404,99 @@
           <div class="status-message error">{{ modalError() }}</div>
         }
 
-        @if (!modalLoading()) {
-          <section>
-            <div class="modal-summary">
-              <span>{{ modalPredEquipos().length }} modalidades de equipos</span>
-              <span>{{ modalPredPartidos().length }} predicciones de partidos</span>
-            </div>
+        @if (!modalLoading() && !modalError()) {
 
-            <h4>Predicciones por modalidad (equipos)</h4>
-            @if (modalPredEquipos().length === 0) {
-              <div class="status-message">No hay predicciones de equipos para este usuario.</div>
-            }
-            @for (m of modalPredEquipos(); track m.IdPrediccion) {
-              <div class="modalidad-card">
-                <div class="modalidad-header">
-                  <div>
-                    <strong>{{ m.NombreModalidad }}</strong>
-                    <div class="modalidad-meta">Cierre: {{ m.fechaDeCierre ?? '—' }}</div>
+          @if (modalGroupedEquipos().length === 0 && modalGroupedPartidos().length === 0) {
+            <div class="status-message">Este usuario no tiene predicciones registradas.</div>
+          }
+
+          @if (modalGroupedEquipos().length > 0) {
+            <h4>Clasificados de grupos y mis 4</h4>
+            @for (group of modalGroupedEquipos(); track group.idModalidad) {
+              <div class="pred-group-card">
+                <div class="pred-group-header">
+                  <div class="pred-group-title">
+                    <span class="pred-modalidad-name">{{ group.nombreModalidad }}</span>
+                    <span class="pred-count-badge">{{ group.items.length }} equipo{{ group.items.length !== 1 ? 's' : '' }}</span>
                   </div>
-                  <span class="status" [class.closed]="isFechaCerrada(m.fechaDeCierre)" [class.open]="!isFechaCerrada(m.fechaDeCierre)">
-                    {{ isFechaCerrada(m.fechaDeCierre) ? 'Cerrada' : 'Abierta' }}
+                  <span class="pred-status" [class.open]="!isFechaCerrada(group.fechaDeCierre)" [class.closed]="isFechaCerrada(group.fechaDeCierre)">
+                    {{ isFechaCerrada(group.fechaDeCierre) ? 'Cerrada' : 'Abierta' }}
                   </span>
                 </div>
-
-                @if (isFechaCerrada(m.fechaDeCierre)) {
-                  <div class="modalidad-content">
-                    <ul>
-                      @for (e of [m]; track e.IdPrediccion) {
-                        <li class="modal-equipo-item">
-                          <span>{{ e.NombreEquipo }}</span>
-                          <small>Puntos: {{ e.PuntosGanados }}</small>
-                        </li>
-                      }
-                    </ul>
+                @if (isFechaCerrada(group.fechaDeCierre)) {
+                  <div class="pred-group-items">
+                    @for (e of group.items; track e.IdPrediccion) {
+                      <div class="pred-team-row" [class.tercero]="e.EsMejorTercero">
+                        <img class="pred-flag" [src]="getFlagUrl(e.CodigoISO)" [alt]="e.NombreEquipo" />
+                        <span class="pred-team-name">{{ e.NombreEquipo }}</span>
+                        <div class="pred-badges">
+                          @if (e.Grupo) {
+                            <span class="pred-grupo">Grupo {{ e.Grupo }}</span>
+                          }
+                          @if (e.EsMejorTercero) {
+                            <span class="pred-tercero">Mejor 3°</span>
+                          }
+                        </div>
+                        <div class="pred-pts" [class.positivo]="e.PuntosGanados > 0">
+                          {{ e.PuntosGanados > 0 ? '+' : '' }}{{ e.PuntosGanados }} pts
+                        </div>
+                      </div>
+                    }
                   </div>
                 } @else {
-                  <div class="status-message">Esta modalidad aún está abierta. No se pueden ver las selecciones.</div>
+                  <div class="pred-locked">
+                    Predicciones visibles cuando cierre la modalidad
+                  </div>
                 }
               </div>
             }
+          }
 
-            <h4>Predicciones por partido</h4>
-            @if (modalPredPartidos().length === 0) {
-              <div class="status-message">No hay predicciones de partidos para este usuario.</div>
-            }
-            @for (p of modalPredPartidos(); track p.IdPrediccion) {
-              <div class="modalidad-card">
-                <div class="modalidad-header">
-                  <div>
-                    <strong>{{ p.NombreModalidad }}</strong>
-                    <div class="modalidad-meta">{{ p.Equipo1 }} vs {{ p.Equipo2 }}</div>
+          @if (modalGroupedPartidos().length > 0) {
+            <h4>Predicciones de partidos</h4>
+            @for (group of modalGroupedPartidos(); track group.idModalidad) {
+              <div class="pred-group-card">
+                <div class="pred-group-header">
+                  <div class="pred-group-title">
+                    <span class="pred-modalidad-name">{{ group.nombreModalidad }}</span>
+                    <span class="pred-count-badge">{{ group.items.length }} partido{{ group.items.length !== 1 ? 's' : '' }}</span>
                   </div>
-                  <span class="status" [class.closed]="isPredictionVisibleByModalidad(p)" [class.open]="!isPredictionVisibleByModalidad(p)">
-                    {{ isPredictionVisibleByModalidad(p) ? 'Cerrada' : 'Abierta' }}
+                  <span class="pred-status" [class.open]="!isFechaCerrada(group.fechaDeCierre)" [class.closed]="isFechaCerrada(group.fechaDeCierre)">
+                    {{ isFechaCerrada(group.fechaDeCierre) ? 'Cerrada' : 'Abierta' }}
                   </span>
                 </div>
-
-                @if (isPredictionVisibleByModalidad(p)) {
-                  <div class="modalidad-content">
-                    <div class="modal-partido-row">
-                      <span>Predicción: {{ p.PrediccionGanador }}</span>
-                      <span>Resultado real: {{ p.GanadorReal ?? 'Pendiente' }}</span>
-                    </div>
-                    <div class="modal-partido-row">
-                      <span>Puntos ganados: {{ p.PuntosGanados }}</span>
-                    </div>
+                @if (isFechaCerrada(group.fechaDeCierre)) {
+                  <div class="pred-group-items">
+                    @for (p of group.items; track p.IdPrediccion) {
+                      <div class="pred-partido-row">
+                        <div class="pred-partido-matchup">
+                          <img class="pred-flag-sm" [src]="getFlagUrl(p.CodigoISO1)" [alt]="p.Equipo1" />
+                          <span class="pred-eq-name">{{ p.Equipo1 }}</span>
+                          <span class="pred-vs">vs</span>
+                          <img class="pred-flag-sm" [src]="getFlagUrl(p.CodigoISO2)" [alt]="p.Equipo2" />
+                          <span class="pred-eq-name">{{ p.Equipo2 }}</span>
+                        </div>
+                        <div class="pred-partido-result">
+                          <span class="pred-winner-label">Pred: <strong>{{ p.PrediccionGanador }}</strong></span>
+                          <span class="pred-real-label">Real: {{ p.GanadorReal ?? 'Pendiente' }}</span>
+                          <div class="pred-pts" [class.positivo]="p.PuntosGanados > 0">
+                            {{ p.PuntosGanados > 0 ? '+' : '' }}{{ p.PuntosGanados }} pts
+                          </div>
+                        </div>
+                      </div>
+                    }
                   </div>
                 } @else {
-                  <div class="status-message">Esta modalidad aún está abierta. No se pueden ver las selecciones de partido.</div>
+                  <div class="pred-locked">
+                    Predicciones visibles cuando cierre la modalidad
+                  </div>
                 }
               </div>
             }
-          </section>
+          }
+
         }
       </div>
     </div>
   </div>
 }
-
-<!-- ✓ Fix aplicado — pagina-principal.html -->

@@ -11,6 +11,10 @@ import {
   PrediccionGrupoPayload,
   PrediccionPartido,
   PrediccionPartidoPayload,
+  ResultadoGruposStats,
+  ResultadoGrupoDetalle,
+  ResultadoPartidosStats,
+  ResultadoPartidoDetalle,
 } from '../models/quiniela.models';
 
 @Injectable({ providedIn: 'root' })
@@ -82,16 +86,36 @@ export class ServiciosQuiniela {
     );
   }
 
-  registrarResultadosGrupos(grupos: { IdGrupo: string; IdEquipo1: number; IdEquipo2: number }[]): Observable<ApiResponse<{ mensaje: string }>> {
-    return this.http.post<ApiResponse<{ mensaje: string }>>(
+  registrarResultadosGrupos(
+    idModalidad: number,
+    resultados: { IdEquipo: number; EsMejorTercero: boolean }[]
+  ): Observable<ApiResponse<{ mensaje: string; calificadosCount: number }>> {
+    return this.http.post<ApiResponse<{ mensaje: string; calificadosCount: number }>>(
       `${this.baseUrl}/registrarResultadosGrupos`,
-      { grupos }
+      { IdModalidad: idModalidad, Resultados: resultados }
     );
+  }
+
+  getResultadosGrupos(idModalidad: number): Observable<ApiResponse<{
+    stats: ResultadoGruposStats;
+    detalle: ResultadoGrupoDetalle[];
+  }>> {
+    return this.http.get<ApiResponse<{ stats: ResultadoGruposStats; detalle: ResultadoGrupoDetalle[] }>>(
+      `${this.baseUrl}/getResultadosGrupos?IdModalidad=${idModalidad}`
+    );
+  }
+
+  getResultadosPartidos(idModalidad?: number): Observable<ApiResponse<{
+    stats: ResultadoPartidosStats;
+    detalle: ResultadoPartidoDetalle[];
+  }>> {
+    const url = idModalidad !== undefined
+      ? `${this.baseUrl}/getResultadosPartidos?IdModalidad=${idModalidad}`
+      : `${this.baseUrl}/getResultadosPartidos`;
+    return this.http.get<ApiResponse<{ stats: ResultadoPartidosStats; detalle: ResultadoPartidoDetalle[] }>>(url);
   }
 
   consolidarPuntos(): Observable<ApiResponse<{ mensaje: string }>> {
     return this.http.post<ApiResponse<{ mensaje: string }>>(`${this.baseUrl}/consolidarPuntos`, {});
   }
 }
-
-// ✓ Fix aplicado — servicios-quiniela.ts

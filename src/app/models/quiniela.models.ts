@@ -78,6 +78,48 @@ export interface UsuarioAdmin {
   PrimerLogin: boolean;
 }
 
+export interface ResultadoGruposStats {
+  TotalClasificados: number;
+  TotalMejoresTerceros: number;
+  ClasificadosEsperados: number;
+  MejoresTercerosEsperados: number;
+  EstaCompleto: number;
+}
+
+export interface ResultadoGrupoDetalle {
+  IdEquipo: number;
+  NombreEquipo: string;
+  Grupo: string;
+  CodigoISO: string | null;
+  EsMejorTercero: boolean;
+  Estado: string;
+}
+
+export interface ResultadoPartidosStats {
+  TotalPartidos: number;
+  ConResultado: number;
+  SinResultado: number;
+  TodosCompletos: number;
+}
+
+export interface ResultadoPartidoDetalle {
+  IdPartido: number;
+  IdModalidad: number;
+  NombreModalidad: string;
+  IdEquipo1: number;
+  Equipo1: string;
+  CodigoISO1: string | null;
+  IdEquipo2: number;
+  Equipo2: string;
+  CodigoISO2: string | null;
+  IdGanador: number | null;
+  NombreGanador: string | null;
+  CodigoISOGanador: string | null;
+  FechaPartido: string | null;
+  TieneResultado: number;
+  Estado: string;
+}
+
 export interface ApiResponse<T> {
   data: T;
   errors: { codigo: number | string; descripcion: string }[];

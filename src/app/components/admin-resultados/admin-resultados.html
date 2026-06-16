@@ -33,6 +33,7 @@
 
   <div class="section-content">
 
+    <!-- ===================== PARTIDO ===================== -->
     @if (activeSection() === 'partido') {
       <div class="section-card">
         <h2>Registrar resultado de partido eliminatorio</h2>
@@ -79,55 +80,190 @@
           </div>
         }
 
-        <button class="btn-primary" (click)="registrarResultadoPartido()" [disabled]="loading() || !selectedPartidoId() || !selectedGanadorId()">
+        <button
+          class="btn-primary"
+          (click)="registrarResultadoPartido()"
+          [disabled]="loading() || !selectedPartidoId() || !selectedGanadorId()"
+        >
           @if (loading()) { Guardando... } @else { Registrar resultado }
         </button>
       </div>
-    }
 
-    @if (activeSection() === 'grupos') {
+      <!-- Visualización resultados de partidos -->
       <div class="section-card">
-        <h2>Registrar clasificados de fase de grupos</h2>
-        <p class="section-desc">Selecciona el grupo y los dos equipos que clasifican a la siguiente fase.</p>
-
-        <div class="form-group">
-          <label>Grupo</label>
-          <select [ngModel]="grupoNombre()" (ngModelChange)="grupoNombre.set($event); grupo1erEquipoId.set(null); grupo2doEquipoId.set(null)" name="grupo">
-            <option value="">-- Selecciona un grupo --</option>
-            @for (g of gruposDisponibles(); track g) {
-              <option [value]="g">Grupo {{ g }}</option>
-            }
-          </select>
+        <div class="card-header-row">
+          <h2>Estado de partidos</h2>
+          <button class="btn-secondary btn-sm" (click)="loadResultadosPartidos()" [disabled]="loadingResultadosPartidos()">
+            Actualizar
+          </button>
         </div>
 
-        @if (grupoNombre()) {
-          <div class="form-group">
-            <label>1er clasificado</label>
-            <select [ngModel]="grupo1erEquipoId()" (ngModelChange)="grupo1erEquipoId.set(+$event || null)" name="eq1">
-              <option [ngValue]="null">-- Selecciona equipo --</option>
-              @for (e of equiposDelGrupo(); track e.IdEquipo) {
-                <option [ngValue]="e.IdEquipo">{{ e.Nombre }}</option>
-              }
-            </select>
+        @if (loadingResultadosPartidos()) {
+          <p class="loading-text">Cargando estado...</p>
+        } @else if (resultadosPartidosStats()) {
+          <div class="stats-row">
+            <div class="stat-chip">
+              <span class="stat-number">{{ resultadosPartidosStats()!.ConResultado }}</span>
+              <span class="stat-label">Con resultado</span>
+            </div>
+            <div class="stat-chip">
+              <span class="stat-number pending">{{ resultadosPartidosStats()!.SinResultado }}</span>
+              <span class="stat-label">Sin resultado</span>
+            </div>
+            <div class="stat-chip">
+              <span class="stat-number">{{ resultadosPartidosStats()!.TotalPartidos }}</span>
+              <span class="stat-label">Total partidos</span>
+            </div>
+            <span class="estado-badge" [class.completo]="resultadosPartidosStats()!.TodosCompletos === 1">
+              {{ resultadosPartidosStats()!.TodosCompletos === 1 ? 'Completo' : 'Pendiente' }}
+            </span>
           </div>
 
-          <div class="form-group">
-            <label>2do clasificado</label>
-            <select [ngModel]="grupo2doEquipoId()" (ngModelChange)="grupo2doEquipoId.set(+$event || null)" name="eq2">
-              <option [ngValue]="null">-- Selecciona equipo --</option>
-              @for (e of equiposDelGrupo(); track e.IdEquipo) {
-                <option [ngValue]="e.IdEquipo">{{ e.Nombre }}</option>
-              }
-            </select>
-          </div>
+          @if (resultadosPartidosDetalle().length > 0) {
+            <div class="table-wrapper">
+              <table class="resultados-table">
+                <thead>
+                  <tr>
+                    <th>Fase</th>
+                    <th>Partido</th>
+                    <th>Ganador</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of resultadosPartidosDetalle(); track p.IdPartido) {
+                    <tr [class.row-pending]="p.TieneResultado === 0">
+                      <td class="fase-cell">{{ p.NombreModalidad }}</td>
+                      <td>
+                        <span class="team-name">{{ p.Equipo1 }}</span>
+                        <span class="vs">vs</span>
+                        <span class="team-name">{{ p.Equipo2 }}</span>
+                      </td>
+                      <td>
+                        @if (p.NombreGanador) {
+                          <span class="ganador-name">{{ p.NombreGanador }}</span>
+                        } @else {
+                          <span class="no-result">—</span>
+                        }
+                      </td>
+                      <td>
+                        <span class="estado-badge sm" [class.completo]="p.TieneResultado === 1">
+                          {{ p.Estado }}
+                        </span>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
         }
-
-        <button class="btn-primary" (click)="registrarResultadosGrupos()" [disabled]="loading() || !grupoNombre() || !grupo1erEquipoId() || !grupo2doEquipoId()">
-          @if (loading()) { Guardando... } @else { Registrar clasificados }
-        </button>
       </div>
     }
 
+    <!-- ===================== GRUPOS ===================== -->
+    @if (activeSection() === 'grupos') {
+      <!-- Stats de resultados ya registrados -->
+      @if (resultadosGruposStats()) {
+        <div class="section-card stats-summary-card">
+          <div class="card-header-row">
+            <h2>Estado actual</h2>
+            <span class="estado-badge" [class.completo]="resultadosGruposStats()!.EstaCompleto === 1">
+              {{ resultadosGruposStats()!.EstaCompleto === 1 ? 'Completo' : 'Pendiente' }}
+            </span>
+          </div>
+          <div class="stats-row">
+            <div class="stat-chip">
+              <span class="stat-number">{{ resultadosGruposStats()!.TotalClasificados }}</span>
+              <span class="stat-label">Clasificados (esp. {{ resultadosGruposStats()!.ClasificadosEsperados }})</span>
+            </div>
+            <div class="stat-chip">
+              <span class="stat-number">{{ resultadosGruposStats()!.TotalMejoresTerceros }}</span>
+              <span class="stat-label">Mejores terceros (esp. {{ resultadosGruposStats()!.MejoresTercerosEsperados }})</span>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Formulario de selección -->
+      <div class="section-card">
+        <div class="card-header-row">
+          <h2>Seleccionar clasificados</h2>
+          <div class="counter-badges">
+            <span class="counter-badge" [class.complete]="adminClasificadoCount() === adminGrupoNames().length * 2">
+              C: {{ adminClasificadoCount() }}/{{ adminGrupoNames().length * 2 }}
+            </span>
+            <span class="counter-badge tercero" [class.complete]="adminTerceroCount() === 8">
+              3°: {{ adminTerceroCount() }}/8
+            </span>
+          </div>
+        </div>
+        <p class="section-desc">
+          Por cada grupo selecciona los 2 clasificados (clic en el nombre). Luego marca los 8 mejores terceros con el botón "3°".
+        </p>
+
+        @if (loadingResultadosGrupos()) {
+          <p class="loading-text">Cargando datos...</p>
+        } @else {
+          <div class="grupos-grid">
+            @for (g of adminGrupoNames(); track g; let gIdx = $index) {
+              <div class="grupo-card">
+                <div class="grupo-header">
+                  <span class="grupo-title">Grupo {{ g }}</span>
+                  <span class="grupo-clasificados-count" [class.full]="clasificadoCountAdmin(g) === 2">
+                    {{ clasificadoCountAdmin(g) }}/2
+                  </span>
+                </div>
+                <div class="grupo-teams">
+                  @for (e of adminGrupos()[g]; track e.IdEquipo; let eIdx = $index) {
+                    <div class="team-row-admin"
+                      [class.is-clasificado]="isAdminClasificado(g, e.IdEquipo)"
+                      [class.is-tercero]="isAdminTercero(g, e.IdEquipo)"
+                    >
+                      <button
+                        type="button"
+                        class="team-name-btn"
+                        [class.clasificado]="isAdminClasificado(g, e.IdEquipo)"
+                        [class.blocked]="!isAdminClasificado(g, e.IdEquipo) && clasificadoCountAdmin(g) >= 2"
+                        (click)="toggleAdminClasificado(g, e.IdEquipo)"
+                        [disabled]="loading()"
+                      >
+                        <img [src]="getFlagUrl(e.CodigoISO)" class="flag-mini" alt="" />
+                        <span>{{ e.Nombre }}</span>
+                        @if (isAdminClasificado(g, e.IdEquipo)) {
+                          <span class="clasificado-badge">✓</span>
+                        }
+                      </button>
+                      @if (!isAdminClasificado(g, e.IdEquipo)) {
+                        <button
+                          type="button"
+                          class="tercero-btn"
+                          [class.active]="isAdminTercero(g, e.IdEquipo)"
+                          [class.blocked]="!canToggleAdminTercero(g, e.IdEquipo)"
+                          (click)="toggleAdminTercero(g, e.IdEquipo)"
+                          [disabled]="loading()"
+                          title="Mejor tercero"
+                        >3°</button>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+
+          <button
+            class="btn-primary"
+            (click)="submitResultadosGrupos()"
+            [disabled]="loading() || !canSubmitGrupos()"
+          >
+            @if (loading()) { Guardando... } @else { Registrar resultados de grupos }
+          </button>
+        }
+      </div>
+    }
+
+    <!-- ===================== CONSOLIDAR ===================== -->
     @if (activeSection() === 'consolidar') {
       <div class="section-card">
         <h2>Consolidar puntos totales</h2>
@@ -144,6 +280,7 @@
       </div>
     }
 
+    <!-- ===================== USUARIOS ===================== -->
     @if (activeSection() === 'usuarios') {
       <div class="section-card">
         <h2>Crear nuevo usuario</h2>
@@ -182,7 +319,7 @@
       <div class="section-card">
         <div class="usuarios-header">
           <h2>Usuarios registrados</h2>
-          <button class="btn-secondary" (click)="loadUsuarios()" [disabled]="loadingUsuarios()">
+          <button class="btn-secondary btn-sm" (click)="loadUsuarios()" [disabled]="loadingUsuarios()">
             Actualizar
           </button>
         </div>

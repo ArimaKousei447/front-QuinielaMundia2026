@@ -1,9 +1,18 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ServiciosQuiniela } from '../../services/servicios-quiniela';
-import { Equipo, Partido, UsuarioAdmin } from '../../models/quiniela.models';
+import {
+  Equipo,
+  Partido,
+  ResultadoGrupoDetalle,
+  ResultadoGruposStats,
+  ResultadoPartidoDetalle,
+  ResultadoPartidosStats,
+  UsuarioAdmin,
+} from '../../models/quiniela.models';
 
 @Component({
   standalone: true,
@@ -19,18 +28,32 @@ export class AdminResultados {
 
   activeSection = signal<'partido' | 'grupos' | 'consolidar' | 'usuarios'>('partido');
 
-  // Datos cargados
+  // Base
   equipos = signal<Equipo[]>([]);
   partidos = signal<Partido[]>([]);
 
-  // Formulario: registrar resultado de partido
+  // Registro de partido eliminatorio
   selectedPartidoId = signal<number | null>(null);
   selectedGanadorId = signal<number | null>(null);
+  loadingPartidos = signal(false);
 
-  // Formulario: registrar resultados de grupos
-  grupoNombre = signal('');
-  grupo1erEquipoId = signal<number | null>(null);
-  grupo2doEquipoId = signal<number | null>(null);
+  // Visualización resultados de partidos
+  resultadosPartidosStats = signal<ResultadoPartidosStats | null>(null);
+  resultadosPartidosDetalle = signal<ResultadoPartidoDetalle[]>([]);
+  loadingResultadosPartidos = signal(false);
+
+  // Selección de clasificados y mejores terceros de grupos
+  adminSelectedClasificados = signal<Record<string, number[]>>({});
+  adminSelectedTerceros = signal<Record<string, number>>({});
+
+  // Visualización resultados de grupos
+  resultadosGruposStats = signal<ResultadoGruposStats | null>(null);
+  resultadosGruposDetalle = signal<ResultadoGrupoDetalle[]>([]);
+  loadingResultadosGrupos = signal(false);
+
+  // General
+  loading = signal(false);
+  notification = signal<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Usuarios
   usuarios = signal<UsuarioAdmin[]>([]);
@@ -40,29 +63,43 @@ export class AdminResultados {
   nuevaContrasena = signal('');
   nuevoRol = signal<number>(1);
 
-  loading = signal(false);
-  loadingPartidos = signal(false);
-  notification = signal<{ type: 'success' | 'error'; message: string } | null>(null);
-
   private notifTimer: number | null = null;
+
+  // Computed grupos form
+  adminGrupos = computed(() => {
+    const grouped: Record<string, Equipo[]> = {};
+    for (const e of this.equipos()) {
+      const g = e.Grupo ?? 'Sin grupo';
+      if (!grouped[g]) grouped[g] = [];
+      grouped[g].push(e);
+    }
+    return grouped;
+  });
+
+  adminGrupoNames = computed(() => Object.keys(this.adminGrupos()).sort());
+
+  adminTerceroCount = computed(() => Object.keys(this.adminSelectedTerceros()).length);
+
+  canSubmitGrupos = computed(() => {
+    const groups = this.adminGrupoNames();
+    if (groups.length === 0) return false;
+    for (const g of groups) {
+      if ((this.adminSelectedClasificados()[g] ?? []).length !== 2) return false;
+    }
+    return this.adminTerceroCount() === 8;
+  });
+
+  adminClasificadoCount = computed(() => {
+    let total = 0;
+    for (const ids of Object.values(this.adminSelectedClasificados())) {
+      total += ids.length;
+    }
+    return total;
+  });
 
   selectedPartido = computed(() =>
     this.partidos().find(p => p.IdPartido === this.selectedPartidoId()) ?? null
   );
-
-  gruposDisponibles = computed(() => {
-    const seen = new Set<string>();
-    for (const e of this.equipos()) {
-      if (e.Grupo) seen.add(e.Grupo);
-    }
-    return Array.from(seen).sort();
-  });
-
-  equiposDelGrupo = computed(() => {
-    const g = this.grupoNombre();
-    if (!g) return [];
-    return this.equipos().filter(e => e.Grupo === g);
-  });
 
   constructor() {
     this.loadData();
@@ -75,7 +112,11 @@ export class AdminResultados {
       error: () => {},
     });
     this.loadPartidos();
+    this.loadResultadosGrupos();
+    this.loadResultadosPartidos();
   }
+
+  // ---- Partidos ----
 
   loadPartidos(): void {
     this.loadingPartidos.set(true);
@@ -85,6 +126,20 @@ export class AdminResultados {
         if (!r.hasError) this.partidos.set(r.data ?? []);
       },
       error: () => this.loadingPartidos.set(false),
+    });
+  }
+
+  loadResultadosPartidos(): void {
+    this.loadingResultadosPartidos.set(true);
+    this.servicio.getResultadosPartidos().subscribe({
+      next: (r) => {
+        this.loadingResultadosPartidos.set(false);
+        if (!r.hasError) {
+          this.resultadosPartidosStats.set(r.data.stats);
+          this.resultadosPartidosDetalle.set(r.data.detalle);
+        }
+      },
+      error: () => this.loadingResultadosPartidos.set(false),
     });
   }
 
@@ -113,45 +168,135 @@ export class AdminResultados {
         this.selectedPartidoId.set(null);
         this.selectedGanadorId.set(null);
         this.loadPartidos();
+        this.loadResultadosPartidos();
       },
-      error: () => {
+      error: (httpError: HttpErrorResponse) => {
         this.loading.set(false);
-        this.notify('error', 'Error al conectar con el servidor.');
+        const msg = httpError?.error?.errors?.[0]?.descripcion ?? 'Error al conectar con el servidor.';
+        this.notify('error', msg);
       },
     });
   }
 
-  registrarResultadosGrupos(): void {
-    const grupo = this.grupoNombre();
-    const eq1 = this.grupo1erEquipoId();
-    const eq2 = this.grupo2doEquipoId();
-    if (!grupo || !eq1 || !eq2) {
-      this.notify('error', 'Completa todos los campos del grupo.');
-      return;
+  // ---- Grupos ----
+
+  loadResultadosGrupos(): void {
+    this.loadingResultadosGrupos.set(true);
+    this.servicio.getResultadosGrupos(1).subscribe({
+      next: (r) => {
+        this.loadingResultadosGrupos.set(false);
+        if (!r.hasError) {
+          this.resultadosGruposStats.set(r.data.stats);
+          this.resultadosGruposDetalle.set(r.data.detalle);
+          this.preselectFromDetalle(r.data.detalle);
+        }
+      },
+      error: () => this.loadingResultadosGrupos.set(false),
+    });
+  }
+
+  private preselectFromDetalle(detalle: ResultadoGrupoDetalle[]): void {
+    const clasificados: Record<string, number[]> = {};
+    const terceros: Record<string, number> = {};
+    for (const item of detalle) {
+      const g = item.Grupo;
+      if (item.EsMejorTercero) {
+        terceros[g] = item.IdEquipo;
+      } else {
+        if (!clasificados[g]) clasificados[g] = [];
+        clasificados[g].push(item.IdEquipo);
+      }
     }
-    if (eq1 === eq2) {
-      this.notify('error', 'Los dos equipos clasificados deben ser distintos.');
-      return;
+    this.adminSelectedClasificados.set(clasificados);
+    this.adminSelectedTerceros.set(terceros);
+  }
+
+  isAdminClasificado(group: string, teamId: number): boolean {
+    return (this.adminSelectedClasificados()[group] ?? []).includes(teamId);
+  }
+
+  clasificadoCountAdmin(group: string): number {
+    return (this.adminSelectedClasificados()[group] ?? []).length;
+  }
+
+  toggleAdminClasificado(group: string, teamId: number): void {
+    const current = { ...this.adminSelectedClasificados() };
+    const selected = [...(current[group] ?? [])];
+    const idx = selected.indexOf(teamId);
+    if (idx >= 0) {
+      selected.splice(idx, 1);
+    } else {
+      if (selected.length >= 2) return;
+      selected.push(teamId);
+      // Si estaba como tercero en este grupo, quitarlo
+      const terceros = { ...this.adminSelectedTerceros() };
+      if (terceros[group] === teamId) {
+        delete terceros[group];
+        this.adminSelectedTerceros.set(terceros);
+      }
     }
+    current[group] = selected;
+    this.adminSelectedClasificados.set(current);
+  }
+
+  isAdminTercero(group: string, teamId: number): boolean {
+    return this.adminSelectedTerceros()[group] === teamId;
+  }
+
+  canToggleAdminTercero(group: string, teamId: number): boolean {
+    if (this.isAdminClasificado(group, teamId)) return false;
+    const current = this.adminSelectedTerceros()[group];
+    if (current === teamId) return true;
+    if (current !== undefined) return false;
+    return this.adminTerceroCount() < 8;
+  }
+
+  toggleAdminTercero(group: string, teamId: number): void {
+    if (this.isAdminClasificado(group, teamId)) return;
+    const current = { ...this.adminSelectedTerceros() };
+    if (current[group] === teamId) {
+      delete current[group];
+    } else {
+      if (current[group] !== undefined) return;
+      if (this.adminTerceroCount() >= 8) return;
+      current[group] = teamId;
+    }
+    this.adminSelectedTerceros.set(current);
+  }
+
+  submitResultadosGrupos(): void {
+    if (!this.canSubmitGrupos()) return;
+    const resultados: { IdEquipo: number; EsMejorTercero: boolean }[] = [];
+
+    for (const ids of Object.values(this.adminSelectedClasificados())) {
+      for (const id of ids) {
+        resultados.push({ IdEquipo: id, EsMejorTercero: false });
+      }
+    }
+    for (const id of Object.values(this.adminSelectedTerceros())) {
+      resultados.push({ IdEquipo: id, EsMejorTercero: true });
+    }
+
     this.loading.set(true);
-    this.servicio.registrarResultadosGrupos([{ IdGrupo: grupo, IdEquipo1: eq1, IdEquipo2: eq2 }]).subscribe({
+    this.servicio.registrarResultadosGrupos(1, resultados).subscribe({
       next: (r) => {
         this.loading.set(false);
         if (r.hasError) {
-          this.notify('error', r.errors?.[0]?.descripcion ?? 'Error al registrar resultados de grupo.');
+          this.notify('error', r.errors?.[0]?.descripcion ?? 'Error al registrar resultados.');
           return;
         }
         this.notify('success', r.data?.mensaje ?? 'Resultados de grupo registrados.');
-        this.grupoNombre.set('');
-        this.grupo1erEquipoId.set(null);
-        this.grupo2doEquipoId.set(null);
+        this.loadResultadosGrupos();
       },
-      error: () => {
+      error: (httpError: HttpErrorResponse) => {
         this.loading.set(false);
-        this.notify('error', 'Error al conectar con el servidor.');
+        const msg = httpError?.error?.errors?.[0]?.descripcion ?? 'Error al conectar con el servidor.';
+        this.notify('error', msg);
       },
     });
   }
+
+  // ---- Consolidar ----
 
   consolidarPuntos(): void {
     this.loading.set(true);
@@ -164,12 +309,15 @@ export class AdminResultados {
         }
         this.notify('success', r.data?.mensaje ?? 'Puntos consolidados correctamente.');
       },
-      error: () => {
+      error: (httpError: HttpErrorResponse) => {
         this.loading.set(false);
-        this.notify('error', 'Error al conectar con el servidor.');
+        const msg = httpError?.error?.errors?.[0]?.descripcion ?? 'Error al conectar con el servidor.';
+        this.notify('error', msg);
       },
     });
   }
+
+  // ---- Usuarios ----
 
   loadUsuarios(): void {
     this.loadingUsuarios.set(true);
@@ -179,9 +327,10 @@ export class AdminResultados {
         if (!r.hasError) this.usuarios.set(r.data ?? []);
         else this.notify('error', r.errors?.[0]?.descripcion ?? 'Error al cargar usuarios.');
       },
-      error: () => {
+      error: (httpError: HttpErrorResponse) => {
         this.loadingUsuarios.set(false);
-        this.notify('error', 'Error al conectar con el servidor.');
+        const msg = httpError?.error?.errors?.[0]?.descripcion ?? 'Error al conectar con el servidor.';
+        this.notify('error', msg);
       },
     });
   }
@@ -209,11 +358,18 @@ export class AdminResultados {
         this.nuevoRol.set(1);
         this.loadUsuarios();
       },
-      error: () => {
+      error: (httpError: HttpErrorResponse) => {
         this.loading.set(false);
-        this.notify('error', 'Error al conectar con el servidor.');
+        const msg = httpError?.error?.errors?.[0]?.descripcion ?? 'Error al conectar con el servidor.';
+        this.notify('error', msg);
       },
     });
+  }
+
+  // ---- Utils ----
+
+  getFlagUrl(codigoISO: string | null): string {
+    return this.servicio.getFlagUrl(codigoISO);
   }
 
   notify(type: 'success' | 'error', message: string): void {

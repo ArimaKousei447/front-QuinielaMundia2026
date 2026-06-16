@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal, effect } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ServiciosQuiniela } from '../../services/servicios-quiniela';
@@ -35,6 +36,13 @@ interface KnockoutMatch {
   IdPartido: number;
   teamA: KnockoutTeam;
   teamB: KnockoutTeam;
+}
+
+interface ModalidadGroup<T> {
+  idModalidad: number;
+  nombreModalidad: string;
+  fechaDeCierre: string | null;
+  items: T[];
 }
 
 @Component({
@@ -84,6 +92,14 @@ export class PaginaPrincipal {
   misPrediccionesCargadas = signal(false);
 
   private readonly DEFAULT_ID_MODALIDAD = 1;
+
+  misGroupedEquipos = computed(() => this.groupByModalidad(this.misPrediccionesEquipos()));
+  misGroupedPartidos = computed(() => this.groupByModalidad(this.misPrediccionesPartidos()));
+  modalGroupedEquipos = computed(() => this.groupByModalidad(this.modalPredEquipos()));
+  modalGroupedPartidos = computed(() => this.groupByModalidad(this.modalPredPartidos()));
+  hasAnyClosedModalidad = computed(() =>
+    this.modalidades().some(m => this.isFechaCerrada(m.fechaDeCierre))
+  );
 
   grupos = computed(() => {
     const grouped: Record<string, Equipo[]> = {};
@@ -666,9 +682,10 @@ export class PaginaPrincipal {
           }
           this.showNotification('success', response.data.mensaje);
         },
-        error: () => {
+        error: (httpError: HttpErrorResponse) => {
           this.sending.set(false);
-          this.showNotification('error', 'Error al enviar predicciones.');
+          const msg = httpError?.error?.errors?.[0]?.descripcion ?? 'Error al enviar predicciones.';
+          this.showNotification('error', msg);
         },
       });
       return;
@@ -695,9 +712,10 @@ export class PaginaPrincipal {
         }
         this.showNotification('success', response.data.mensaje);
       },
-      error: () => {
+      error: (httpError: HttpErrorResponse) => {
         this.sending.set(false);
-        this.showNotification('error', 'Error al enviar predicciones.');
+        const msg = httpError?.error?.errors?.[0]?.descripcion ?? 'Error al enviar predicciones.';
+        this.showNotification('error', msg);
       },
     });
   }
@@ -729,11 +747,36 @@ export class PaginaPrincipal {
         }
         this.showNotification('success', response.data.mensaje);
       },
-      error: () => {
+      error: (httpError: HttpErrorResponse) => {
         this.sending.set(false);
-        this.showNotification('error', 'Error al enviar predicciones.');
+        const msg = httpError?.error?.errors?.[0]?.descripcion ?? 'Error al enviar predicciones.';
+        this.showNotification('error', msg);
       },
     });
+  }
+
+  getFlagUrl(codigoISO: string | null): string {
+    return this.servicio.getFlagUrl(codigoISO);
+  }
+
+  private groupByModalidad<T extends { IdModalidad: number; NombreModalidad: string; fechaDeCierre: string | null }>(
+    items: T[]
+  ): ModalidadGroup<T>[] {
+    const map = new Map<number, ModalidadGroup<T>>();
+    for (const item of items) {
+      const entry = map.get(item.IdModalidad);
+      if (entry) {
+        entry.items.push(item);
+      } else {
+        map.set(item.IdModalidad, {
+          idModalidad: item.IdModalidad,
+          nombreModalidad: item.NombreModalidad,
+          fechaDeCierre: item.fechaDeCierre,
+          items: [item],
+        });
+      }
+    }
+    return Array.from(map.values());
   }
 
   private resizeHandler = () => this.drawConnectors();
