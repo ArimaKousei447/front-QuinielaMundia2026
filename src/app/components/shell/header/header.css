@@ -1,0 +1,91 @@
+:host {
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0.75rem var(--container-pad);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.app-header-brand {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+.app-header-logo { font-size: 1.4rem; line-height: 1; }
+.app-header-title {
+  font-weight: 800;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+}
+
+.app-header-center { flex: 1; text-align: center; min-width: 0; }
+.app-header-welcome { font-size: var(--font-size-sm); color: var(--color-text-muted); }
+
+.app-header-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.app-header-botin {
+  padding: 0.4rem 0.85rem;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: var(--radius-full);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1d4ed8;
+  white-space: nowrap;
+}
+
+.btn-icon-amber {
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--color-warning);
+  color: #000;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.btn-icon-amber:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(245, 158, 11, 0.3);
+}
+
+.btn-icon-red {
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--color-error);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.btn-icon-red:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(239, 68, 68, 0.25);
+}
+
+@media (max-width: 600px) {
+  .app-header { flex-wrap: wrap; gap: 0.5rem; }
+  .app-header-center { order: 3; flex-basis: 100%; text-align: left; }
+  .app-header-title { font-size: var(--font-size-base); }
+}
+
+/* ✓ Optimizado — header.css */

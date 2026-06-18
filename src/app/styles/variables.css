@@ -1,0 +1,61 @@
+:root {
+  /* Colores base */
+  --color-bg:           #f8fafc;
+  --color-bg-gradient:  linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
+  --color-surface:      #ffffff;
+  --color-surface-2:    #f8fafc;
+  --color-border:       rgba(15, 23, 42, 0.08);
+  --color-border-strong: rgba(15, 23, 42, 0.14);
+
+  /* Texto */
+  --color-text-primary:   #0f1724;
+  --color-text-secondary: #374151;
+  --color-text-muted:     #64748b;
+  --color-text-faint:     #94a3b8;
+
+  /* Brand / acción */
+  --color-brand:          linear-gradient(90deg, #00c853 0%, #ffd600 100%);
+  --color-accent:         #2563eb;
+  --color-accent-bg:      rgba(37, 99, 235, 0.07);
+  --color-accent-border:  rgba(37, 99, 235, 0.18);
+
+  /* Semánticos */
+  --color-success:        #22c55e;
+  --color-success-bg:     rgba(34, 197, 94, 0.12);
+  --color-success-text:   #065f46;
+  --color-error:          #ef4444;
+  --color-error-bg:       rgba(239, 68, 68, 0.08);
+  --color-error-text:     #991b1b;
+  --color-warning:        #f59e0b;
+  --color-warning-bg:     rgba(251, 191, 36, 0.15);
+  --color-warning-text:   #b45309;
+
+  /* Sombras */
+  --shadow-sm:   0 4px 14px rgba(15, 23, 42, 0.06);
+  --shadow-md:   0 10px 24px rgba(15, 23, 42, 0.09);
+  --shadow-lg:   0 18px 40px rgba(15, 23, 42, 0.08);
+  --shadow-xl:   0 24px 60px rgba(15, 23, 42, 0.14);
+
+  /* Radios */
+  --radius-sm:   8px;
+  --radius-md:   14px;
+  --radius-lg:   20px;
+  --radius-xl:   28px;
+  --radius-full: 999px;
+
+  /* Tipografía */
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-size-xs:   0.75rem;
+  --font-size-sm:   0.85rem;
+  --font-size-base: 0.95rem;
+  --font-size-lg:   1.1rem;
+  --font-size-xl:   1.25rem;
+  --font-size-2xl:  1.55rem;
+
+  /* Espaciado contenedor */
+  --container-max:  1180px;
+  --container-pad:  24px;
+  --section-gap:    1.5rem;
+}
+
+/* ✓ Optimizado — variables.css */

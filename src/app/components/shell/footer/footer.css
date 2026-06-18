@@ -1,0 +1,33 @@
+:host {
+  display: block;
+  margin-top: auto;
+}
+
+.app-footer {
+  border-top: 1px solid var(--color-border);
+  padding: 1.25rem var(--container-pad);
+  margin-top: auto;
+  background: var(--color-surface-2);
+}
+
+.app-footer-inner {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-width: var(--container-max);
+  margin: 0 auto;
+}
+
+.app-footer-brand {
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+.app-footer-copy {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ✓ Optimizado — footer.css */

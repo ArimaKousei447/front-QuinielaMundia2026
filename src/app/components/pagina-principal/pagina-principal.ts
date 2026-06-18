@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ServiciosQuiniela } from '../../services/servicios-quiniela';
 import {
+  Botin,
   Equipo,
   FilaClasificacion,
   Modalidad,
@@ -13,6 +14,9 @@ import {
   PrediccionPartido,
   PrediccionPartidoPayload,
 } from '../../models/quiniela.models';
+import { BotinComponent } from '../botin/botin.component';
+import { AppHeaderComponent } from '../shell/header/header';
+import { AppFooterComponent } from '../shell/footer/footer';
 
 interface BracketTeam {
   id: string | number;
@@ -48,7 +52,7 @@ interface ModalidadGroup<T> {
 @Component({
   standalone: true,
   selector: 'app-pagina-principal',
-  imports: [],
+  imports: [BotinComponent, AppHeaderComponent, AppFooterComponent],
   templateUrl: './pagina-principal.html',
   styleUrls: ['./pagina-principal.css'],
 })
@@ -59,7 +63,9 @@ export class PaginaPrincipal {
 
   equipos = signal<Equipo[]>([]);
   modalidades = signal<Modalidad[]>([]);
-  activeTab = signal<'fases' | 'mis4' | 'clasificacion' | 'misPredicciones'>('fases');
+  activeTab = signal<'fases' | 'mis4' | 'clasificacion' | 'misPredicciones' | 'botin'>('fases');
+  botinPrincipal = signal<Botin | null>(null);
+  botinMis4 = signal<Botin | null>(null);
   selectedModalidadId = signal<number | null>(null);
   partidos = signal<Partido[]>([]);
   knockoutMatches = signal<KnockoutMatch[]>([]);
@@ -71,6 +77,7 @@ export class PaginaPrincipal {
   error = signal<string | undefined>(undefined);
   selectedTeams = signal<Record<string, number[]>>({});
   selectedThirds = signal<Record<string, number>>({});
+  selectedFirsts = signal<Record<string, number>>({});
   sending = signal(false);
   success = signal<string | undefined>(undefined);
   notification = signal<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -122,6 +129,7 @@ export class PaginaPrincipal {
     if (groups.length === 0) return false;
     for (const g of groups) {
       if ((this.selectedTeams()[g] ?? []).length !== 2) return false;
+      if (!this.groupHasFirst(g)) return false;
     }
     return this.thirdCount() === 8;
   });
@@ -132,6 +140,7 @@ export class PaginaPrincipal {
     this.loadUserInfo();
     this.loadEquipos();
     this.loadClasificacion();
+    this.loadBotin();
     window.addEventListener('resize', this.resizeHandler);
     effect(() => {
       if (this.activeTab() === 'misPredicciones' && !this.misPrediccionesCargadas()) {
@@ -241,6 +250,22 @@ export class PaginaPrincipal {
     });
   }
 
+  loadBotin(): void {
+    this.servicio.getBotin().subscribe({
+      next: (response) => {
+        if (response.hasError) return;
+        const list = response.data ?? [];
+        this.botinPrincipal.set(list[0] ?? null);
+        this.botinMis4.set(list[1] ?? null);
+      },
+      error: () => {},
+    });
+  }
+
+  formatMonto(value: number): string {
+    return 'L. ' + value.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
   openUserPredicciones(user: FilaClasificacion): void {
     if (!user?.IdUsuario) return;
     this.modalLoading.set(true);
@@ -294,6 +319,7 @@ export class PaginaPrincipal {
 
   canToggleThird(group: string, teamId: number): boolean {
     if (this.isSelected(group, teamId)) return false;
+    if (this.isFirstSelected(teamId)) return false;
     const current = this.selectedThirdOfGroup(group);
     if (current === teamId) return true;
     if (current !== null) return false;
@@ -324,12 +350,46 @@ export class PaginaPrincipal {
     return Object.values(this.selectedThirds()).includes(teamId);
   }
 
+  isFirstSelected(teamId: number): boolean {
+    return Object.values(this.selectedFirsts()).includes(teamId);
+  }
+
+  groupHasFirst(group: string): boolean {
+    return this.selectedFirsts()[group] !== undefined;
+  }
+
+  canToggleFirst(group: string, teamId: number): boolean {
+    if (!this.isSelected(group, teamId)) return false;
+    if (this.isThirdSelected(teamId)) return false;
+    return true;
+  }
+
+  toggleFirst(group: string, teamId: number): void {
+    if (!this.canToggleFirst(group, teamId)) return;
+    const current = { ...this.selectedFirsts() };
+    if (current[group] === teamId) {
+      delete current[group];
+    } else {
+      current[group] = teamId;
+    }
+    this.selectedFirsts.set(current);
+  }
+
+  firstCount(): number {
+    return Object.keys(this.selectedFirsts()).length;
+  }
+
   toggleTeam(group: string, teamId: number): void {
     const current = { ...this.selectedTeams() };
     const selected = [...(current[group] ?? [])];
     const index = selected.indexOf(teamId);
     if (index >= 0) {
       selected.splice(index, 1);
+      const firsts = { ...this.selectedFirsts() };
+      if (firsts[group] === teamId) {
+        delete firsts[group];
+        this.selectedFirsts.set(firsts);
+      }
     } else {
       if (selected.length >= 2) return;
       selected.push(teamId);
@@ -656,17 +716,18 @@ export class PaginaPrincipal {
     if (Number(modId) === 1) {
       const predicciones: PrediccionGrupoPayload[] = [];
 
-      for (const ids of Object.values(this.selectedTeams())) {
+      for (const [group, ids] of Object.entries(this.selectedTeams())) {
         for (const id of ids ?? []) {
           predicciones.push({
             IdEquipo: id,
             EsMejorTercero: this.isThirdSelected(id) ? 1 : 0,
+            EsPrimerLugar: this.selectedFirsts()[group] === id ? 1 : 0,
           });
         }
       }
       for (const id of Object.values(this.selectedThirds())) {
         if (!predicciones.some(p => p.IdEquipo === id)) {
-          predicciones.push({ IdEquipo: id, EsMejorTercero: 1 });
+          predicciones.push({ IdEquipo: id, EsMejorTercero: 1, EsPrimerLugar: 0 });
         }
       }
 
@@ -734,6 +795,7 @@ export class PaginaPrincipal {
     const predicciones: PrediccionGrupoPayload[] = this.selectedFour().map(id => ({
       IdEquipo: id,
       EsMejorTercero: 0,
+      EsPrimerLugar: 0,
     }));
     this.sending.set(true);
     this.error.set(undefined);

@@ -1,0 +1,352 @@
+/* ======================================================================
+   SHARED COMPONENTS — usados por admin y pagina-principal
+   ====================================================================== */
+
+/* ---- Notificaciones ---- */
+.notification-container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10000;
+  width: min(320px, calc(100% - 2rem));
+}
+.notification {
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text-primary);
+  background: #f3f4f6;
+  font-weight: 700;
+  text-align: center;
+  animation: fadeIn 0.15s ease;
+}
+.notification.success {
+  background: #d9f7e4;
+  border: 1px solid #10b981;
+  color: var(--color-success-text);
+}
+.notification.error {
+  background: #fee2e2;
+  border: 1px solid var(--color-error);
+  color: var(--color-error-text);
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- Botones ---- */
+.btn-primary {
+  background: linear-gradient(135deg, #22c55e, #10b981);
+  border: none;
+  border-radius: var(--radius-full);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.8rem 1.5rem;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.btn-primary:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-secondary {
+  background: rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.7rem 1.2rem;
+  transition: background 0.2s;
+}
+.btn-secondary:hover:not(:disabled) { background: rgba(15, 23, 42, 0.12); }
+.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-danger {
+  background: var(--color-error-bg);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-full);
+  color: var(--color-error);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.7rem 1.2rem;
+  transition: background 0.2s;
+}
+.btn-danger:hover:not(:disabled) { background: rgba(239, 68, 68, 0.16); }
+
+.btn-sm { font-size: var(--font-size-sm); padding: 0.4rem 0.9rem; }
+
+/* ---- Mensajes de estado ---- */
+.status-message {
+  margin: 1rem 0;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-md);
+  background: #f4f5f8;
+  color: #1f2937;
+}
+.status-message.error {
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error);
+  color: var(--color-error-text);
+}
+
+/* ---- Superficie / card ---- */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: 1.4rem 1.6rem;
+}
+
+/* ---- Badges genéricos ---- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.badge-success { background: var(--color-success-bg); color: var(--color-success-text); }
+.badge-error   { background: var(--color-error-bg);   color: var(--color-error-text); }
+.badge-warning { background: var(--color-warning-bg); color: var(--color-warning-text); }
+.badge-info    { background: var(--color-accent-bg);  color: var(--color-accent); }
+
+/* ---- Section header ---- */
+.section-header {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+.section-header h2 {
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  margin: 0;
+}
+
+/* ======================================================================
+   MODAL
+   ====================================================================== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.56);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  font-family: var(--font-sans);
+}
+.modal {
+  width: min(960px, 96%);
+  max-height: 86vh;
+  overflow: auto;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xl);
+  padding: 1rem;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.85rem;
+  margin-bottom: 0.3rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.modal-header h3 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+}
+.modal-body { padding: 0.9rem 0 0; }
+.modal-body h4 {
+  margin: 1.1rem 0 0.6rem;
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+  font-weight: 800;
+}
+.modal-title-block { flex: 1; min-width: 0; }
+.modal-title-block h3 {
+  color: var(--color-text-primary);
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin: 0 0 0.4rem;
+}
+.modal-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.modal-chip {
+  background: #f1f5f9;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  color: #475569;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 2px 10px;
+}
+.close {
+  background: transparent;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  color: #475569;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.close:hover { background: var(--color-border); color: var(--color-text-primary); }
+
+/* ======================================================================
+   GROUPED PREDICTION CARDS (Mis predicciones + Modal)
+   ====================================================================== */
+.pred-group-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+.pred-group-header {
+  align-items: center;
+  background: var(--color-surface-2);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.7rem 1rem;
+}
+.pred-group-title { align-items: center; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.pred-modalidad-name {
+  color: var(--color-text-primary);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.pred-count-badge {
+  background: rgba(15, 23, 42, 0.06);
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 1px 8px;
+}
+.pred-group-items { padding: 0.3rem 0; }
+
+.pred-status {
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+.pred-status.open   { background: rgba(0, 200, 83, 0.1);  color: #007a3a; }
+.pred-status.closed { background: rgba(220, 38, 38, 0.08); color: var(--color-error-text); }
+
+/* Equipo row */
+.pred-team-row {
+  align-items: center;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.5rem 1rem;
+}
+.pred-team-row:last-child { border-bottom: none; }
+.pred-team-row.tercero { background: rgba(13, 148, 136, 0.04); }
+.pred-team-row.primero { background: rgba(251, 191, 36, 0.06); }
+
+.pred-flag {
+  border-radius: 4px;
+  flex-shrink: 0;
+  height: 20px;
+  object-fit: cover;
+  width: 28px;
+}
+.pred-flag-sm {
+  border-radius: 3px;
+  flex-shrink: 0;
+  height: 16px;
+  object-fit: cover;
+  width: 22px;
+}
+.pred-team-name {
+  color: var(--color-text-primary);
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pred-badges { align-items: center; display: flex; flex-shrink: 0; gap: 0.3rem; }
+.pred-grupo {
+  background: rgba(37, 99, 235, 0.1);
+  border-radius: var(--radius-full);
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+.pred-tercero {
+  background: rgba(13, 148, 136, 0.1);
+  border-radius: var(--radius-full);
+  color: #0d9488;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+.pred-primero {
+  background: var(--color-warning-bg);
+  border-radius: var(--radius-full);
+  color: var(--color-warning-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+.pred-pts {
+  color: var(--color-text-faint);
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  min-width: 44px;
+  text-align: right;
+  white-space: nowrap;
+}
+.pred-pts.positivo { color: #059669; }
+
+/* Partido row */
+.pred-partido-row {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+  padding: 0.6rem 1rem;
+}
+.pred-partido-row:last-child { border-bottom: none; }
+.pred-partido-matchup {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+}
+.pred-eq-name { color: var(--color-text-primary); font-size: 0.84rem; font-weight: 600; }
+.pred-vs { color: var(--color-text-faint); font-size: 0.75rem; font-weight: 700; margin: 0 0.1rem; }
+.pred-partido-result { align-items: center; display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.pred-winner-label { color: #334155; font-size: 0.83rem; }
+.pred-winner-label strong { color: #1d4ed8; }
+.pred-real-label { color: var(--color-text-muted); font-size: 0.8rem; }
+.pred-locked {
+  color: var(--color-text-faint);
+  font-size: 0.83rem;
+  font-style: italic;
+  padding: 0.65rem 1rem;
+  text-align: center;
+}
+
+/* ✓ Optimizado — shared.css */

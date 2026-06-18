@@ -1,0 +1,68 @@
+<div class="botin-view">
+
+  <div class="botin-section-header">
+    <h2>Botín del torneo</h2>
+    <button type="button" class="botin-reload-btn" (click)="loadBotin()" [disabled]="loading()">
+      Actualizar
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="botin-status">Cargando botín...</div>
+  }
+
+  @if (error()) {
+    <div class="botin-status error">{{ error() }}</div>
+  }
+
+  @if (!loading() && !error()) {
+    <div class="botin-cards">
+      @for (b of botines(); track b.IdBotin; let i = $index) {
+
+        @if (i === 1) {
+          <!-- Modalidad 9: bote compartido entre acertadores -->
+          <div class="botin-card botin-card-shared">
+            <div class="botin-card-label">{{ b.NombreBotin }}</div>
+            <div class="botin-total-amount">{{ formatMonto(b.MontoTotal) }}</div>
+            <div class="botin-divider"></div>
+            <div class="botin-shared-note">
+              <span class="shared-icon">🤝</span>
+              <span>El botín se dividirá en partes iguales entre todos los participantes que acierten el campeón entre sus selecciones.</span>
+            </div>
+          </div>
+        } @else {
+          <!-- Botín estándar: 50 / 30 / 20 -->
+          <div class="botin-card">
+            <div class="botin-card-label">{{ b.NombreBotin }}</div>
+            <div class="botin-total-amount">{{ formatMonto(b.MontoTotal) }}</div>
+            <div class="botin-divider"></div>
+            <div class="botin-prizes">
+              <div class="botin-prize-row">
+                <span class="medal">🥇</span>
+                <span class="place-label">1er lugar</span>
+                <span class="prize-amount">{{ primero(b.MontoTotal) }}</span>
+                <span class="pct-badge">50%</span>
+              </div>
+              <div class="botin-prize-row">
+                <span class="medal">🥈</span>
+                <span class="place-label">2do lugar</span>
+                <span class="prize-amount">{{ segundo(b.MontoTotal) }}</span>
+                <span class="pct-badge">30%</span>
+              </div>
+              <div class="botin-prize-row">
+                <span class="medal">🥉</span>
+                <span class="place-label">3er lugar</span>
+                <span class="prize-amount">{{ tercero(b.MontoTotal) }}</span>
+                <span class="pct-badge">20%</span>
+              </div>
+            </div>
+          </div>
+        }
+
+      }
+    </div>
+  }
+
+</div>
+
+<!-- ✓ Actualizado — botin.component.html -->

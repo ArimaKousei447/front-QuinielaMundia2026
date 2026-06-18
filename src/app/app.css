@@ -1,0 +1,4 @@
+/* El reset global y html/body viven en src/app/styles/base.css.
+   Este componente raíz (router-outlet) no requiere estilos propios. */
+
+/* ✓ Optimizado — app.css */

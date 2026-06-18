@@ -1,0 +1,22 @@
+<header class="app-header">
+  <div class="app-header-brand">
+    <span class="app-header-logo"></span>
+    <span class="app-header-title">Quiniela Mundial 2026</span>
+  </div>
+  <div class="app-header-center">
+    @if (userName()) {
+      <span class="app-header-welcome">{{ userName() }}</span>
+    }
+  </div>
+  <div class="app-header-actions">
+    @if (botinLabel()) {
+      <span class="app-header-botin">{{ botinLabel() }}</span>
+    }
+    @if (showAdminBtn()) {
+      <button class="btn-icon-amber" (click)="adminClick.emit()">Admin</button>
+    }
+    <button class="btn-icon-red" (click)="logoutClick.emit()">Salir</button>
+  </div>
+</header>
+
+<!-- ✓ Optimizado — header.html -->

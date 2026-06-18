@@ -1,0 +1,22 @@
+/* Contenedor global centrado */
+.app-shell {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--container-pad);
+  width: 100%;
+}
+
+/* Área de contenido bajo el header */
+.page-content {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 1.5rem var(--container-pad) 2rem;
+  width: 100%;
+}
+
+/* Padding estándar de pestañas */
+.tab-content {
+  padding: 0.5rem 0 1rem;
+}
+
+/* ✓ Optimizado — layout.css */

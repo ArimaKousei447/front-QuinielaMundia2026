@@ -1,14 +1,15 @@
 <div class="admin-page">
-  <header class="admin-header">
-    <div class="header-left">
-      <span class="admin-badge">ADMIN</span>
-      <h1>Panel de Resultados</h1>
-    </div>
-    <div class="header-actions">
-      <button class="btn-secondary" (click)="goHome()">Ir al inicio</button>
-      <button class="btn-danger" (click)="logout()">Cerrar sesión</button>
-    </div>
-  </header>
+  <app-header
+    [userName]="null"
+    [userRole]="2"
+    [showAdminBtn]="false"
+    (logoutClick)="logout()"
+  />
+  <div class="admin-badge-bar">
+    <span class="admin-badge">ADMIN</span>
+    <span class="admin-panel-title">Panel de Resultados</span>
+    <button class="btn-secondary btn-sm" (click)="goHome()">Ir al inicio</button>
+  </div>
 
   @if (notification()) {
     <div class="notification" [class.success]="notification()!.type === 'success'" [class.error]="notification()!.type === 'error'">
@@ -28,6 +29,9 @@
     </button>
     <button [class.active]="activeSection() === 'usuarios'" (click)="activeSection.set('usuarios')">
       Gestión de usuarios
+    </button>
+    <button [class.active]="activeSection() === 'botin'" (click)="activeSection.set('botin')">
+      Botín
     </button>
   </nav>
 
@@ -178,6 +182,10 @@
               <span class="stat-label">Clasificados (esp. {{ resultadosGruposStats()!.ClasificadosEsperados }})</span>
             </div>
             <div class="stat-chip">
+              <span class="stat-number">{{ resultadosGruposStats()!.TotalPrimeros }}</span>
+              <span class="stat-label">Primeros (esp. {{ resultadosGruposStats()!.PrimerosEsperados }})</span>
+            </div>
+            <div class="stat-chip">
               <span class="stat-number">{{ resultadosGruposStats()!.TotalMejoresTerceros }}</span>
               <span class="stat-label">Mejores terceros (esp. {{ resultadosGruposStats()!.MejoresTercerosEsperados }})</span>
             </div>
@@ -193,13 +201,16 @@
             <span class="counter-badge" [class.complete]="adminClasificadoCount() === adminGrupoNames().length * 2">
               C: {{ adminClasificadoCount() }}/{{ adminGrupoNames().length * 2 }}
             </span>
+            <span class="counter-badge primero" [class.complete]="adminPrimeroCount() === adminGrupoNames().length">
+              1°: {{ adminPrimeroCount() }}/{{ adminGrupoNames().length }}
+            </span>
             <span class="counter-badge tercero" [class.complete]="adminTerceroCount() === 8">
               3°: {{ adminTerceroCount() }}/8
             </span>
           </div>
         </div>
         <p class="section-desc">
-          Por cada grupo selecciona los 2 clasificados (clic en el nombre). Luego marca los 8 mejores terceros con el botón "3°".
+          Por cada grupo: selecciona 2 clasificados (clic en nombre), marca el 1° lugar entre los clasificados (botón 1°), y marca 1 mejor tercero entre los no clasificados (botón 3°).
         </p>
 
         @if (loadingResultadosGrupos()) {
@@ -219,6 +230,7 @@
                     <div class="team-row-admin"
                       [class.is-clasificado]="isAdminClasificado(g, e.IdEquipo)"
                       [class.is-tercero]="isAdminTercero(g, e.IdEquipo)"
+                      [class.is-primero]="isAdminPrimero(g, e.IdEquipo)"
                     >
                       <button
                         type="button"
@@ -234,6 +246,17 @@
                           <span class="clasificado-badge">✓</span>
                         }
                       </button>
+                      @if (isAdminClasificado(g, e.IdEquipo)) {
+                        <button
+                          type="button"
+                          class="primero-btn"
+                          [class.active]="isAdminPrimero(g, e.IdEquipo)"
+                          [class.blocked]="!canToggleAdminPrimero(g, e.IdEquipo)"
+                          (click)="toggleAdminPrimero(g, e.IdEquipo)"
+                          [disabled]="loading()"
+                          title="Primer lugar"
+                        >1°</button>
+                      }
                       @if (!isAdminClasificado(g, e.IdEquipo)) {
                         <button
                           type="button"
@@ -365,5 +388,90 @@
       </div>
     }
 
+    <!-- ===================== BOTÍN ===================== -->
+    @if (activeSection() === 'botin') {
+      <div class="section-card">
+        <div class="card-header-row">
+          <h2>Actualizar montos del botín</h2>
+          <button class="btn-secondary btn-sm" (click)="loadBotin()" [disabled]="loadingBotin()">
+            Actualizar
+          </button>
+        </div>
+        <p class="section-desc">
+          Edita el monto total de cada botín. La distribución de premios se calcula automáticamente:
+          50% primer lugar, 30% segundo, 20% tercero.
+        </p>
+
+        @if (loadingBotin()) {
+          <p class="loading-text">Cargando botines...</p>
+        } @else if (botines().length === 0) {
+          <p class="loading-text">No hay botines registrados.</p>
+        } @else {
+          <div class="botin-admin-cards">
+            @for (b of botines(); track b.IdBotin; let i = $index) {
+              <div class="botin-admin-card">
+                <div class="botin-admin-name">{{ b.NombreBotin }}</div>
+                <div class="botin-admin-total">{{ formatMonto(b.MontoTotal) }}</div>
+
+                @if (i === 1) {
+                  <div class="botin-admin-shared-note">
+                    <span>🤝</span>
+                    <span>El botín se dividirá en partes iguales entre todos los participantes que acierten el campeón entre sus selecciones.</span>
+                  </div>
+                } @else {
+                  <div class="botin-admin-prizes">
+                    <div class="botin-admin-prize-row">
+                      <span>🥇 1er lugar</span>
+                      <span class="botin-admin-prize-val">{{ formatMonto(b.MontoTotal * 0.50) }}</span>
+                      <span class="botin-pct">50%</span>
+                    </div>
+                    <div class="botin-admin-prize-row">
+                      <span>🥈 2do lugar</span>
+                      <span class="botin-admin-prize-val">{{ formatMonto(b.MontoTotal * 0.30) }}</span>
+                      <span class="botin-pct">30%</span>
+                    </div>
+                    <div class="botin-admin-prize-row">
+                      <span>🥉 3er lugar</span>
+                      <span class="botin-admin-prize-val">{{ formatMonto(b.MontoTotal * 0.20) }}</span>
+                      <span class="botin-pct">20%</span>
+                    </div>
+                  </div>
+                }
+
+                <div class="botin-admin-form">
+                  <div class="form-group">
+                    <label>Nuevo monto total (L.)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      [value]="editMontos()[b.IdBotin]"
+                      (input)="setEditMonto(b.IdBotin, +$any($event.target).value)"
+                    />
+                  </div>
+                  <button
+                    class="btn-primary"
+                    (click)="guardarBotin(b)"
+                    [disabled]="savingBotin()[b.IdBotin]"
+                  >
+                    @if (savingBotin()[b.IdBotin]) { Guardando... } @else { Guardar monto }
+                  </button>
+                  @if (saveMsgs()[b.IdBotin]?.text) {
+                    <p class="botin-save-msg"
+                       [class.botin-save-ok]="saveMsgs()[b.IdBotin]!.type === 'success'"
+                       [class.botin-save-err]="saveMsgs()[b.IdBotin]!.type === 'error'">
+                      {{ saveMsgs()[b.IdBotin]!.text }}
+                    </p>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
   </div>
+
+  <app-footer />
 </div>

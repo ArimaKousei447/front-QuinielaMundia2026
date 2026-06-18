@@ -1,8 +1,4 @@
-/* You can add global styles to this file, and also import other style files */
-html,
-body {
-	margin: 0;
-	padding: 0;
-	width: 100%;
-	min-height: 100%;
-}
+/* Estilos globales. El reset, variables y componentes compartidos
+   viven en src/app/styles/index.css (registrado en angular.json). */
+
+/* ✓ Optimizado — styles.css */

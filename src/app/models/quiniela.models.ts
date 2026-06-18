@@ -48,6 +48,7 @@ export interface PrediccionEquipo {
   Grupo: string;
   CodigoISO: string | null;
   EsMejorTercero: boolean;
+  EsPrimerLugar: boolean;
   PuntosGanados: number;
   FechaPrediccion: string;
 }
@@ -81,8 +82,10 @@ export interface UsuarioAdmin {
 export interface ResultadoGruposStats {
   TotalClasificados: number;
   TotalMejoresTerceros: number;
+  TotalPrimeros: number;
   ClasificadosEsperados: number;
   MejoresTercerosEsperados: number;
+  PrimerosEsperados: number;
   EstaCompleto: number;
 }
 
@@ -92,6 +95,7 @@ export interface ResultadoGrupoDetalle {
   Grupo: string;
   CodigoISO: string | null;
   EsMejorTercero: boolean;
+  EsPrimerLugar: boolean;
   Estado: string;
 }
 
@@ -126,9 +130,17 @@ export interface ApiResponse<T> {
   hasError: boolean;
 }
 
+export interface Botin {
+  IdBotin: number;
+  NombreBotin: string;
+  MontoTotal: number;
+  FechaUpdate: string;
+}
+
 export interface PrediccionGrupoPayload {
   IdEquipo: number;
   EsMejorTercero: number;
+  EsPrimerLugar: number;
 }
 
 export interface PrediccionPartidoPayload {

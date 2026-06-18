@@ -4,7 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ServiciosQuiniela } from '../../services/servicios-quiniela';
+import { AppHeaderComponent } from '../shell/header/header';
+import { AppFooterComponent } from '../shell/footer/footer';
 import {
+  Botin,
   Equipo,
   Partido,
   ResultadoGrupoDetalle,
@@ -17,7 +20,7 @@ import {
 @Component({
   standalone: true,
   selector: 'app-admin-resultados',
-  imports: [FormsModule],
+  imports: [FormsModule, AppHeaderComponent, AppFooterComponent],
   templateUrl: './admin-resultados.html',
   styleUrls: ['./admin-resultados.css'],
 })
@@ -26,7 +29,7 @@ export class AdminResultados {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  activeSection = signal<'partido' | 'grupos' | 'consolidar' | 'usuarios'>('partido');
+  activeSection = signal<'partido' | 'grupos' | 'consolidar' | 'usuarios' | 'botin'>('partido');
 
   // Base
   equipos = signal<Equipo[]>([]);
@@ -42,14 +45,22 @@ export class AdminResultados {
   resultadosPartidosDetalle = signal<ResultadoPartidoDetalle[]>([]);
   loadingResultadosPartidos = signal(false);
 
-  // Selección de clasificados y mejores terceros de grupos
+  // Selección de clasificados, primeros lugares y mejores terceros de grupos
   adminSelectedClasificados = signal<Record<string, number[]>>({});
   adminSelectedTerceros = signal<Record<string, number>>({});
+  adminSelectedPrimeros = signal<Record<string, number>>({});
 
   // Visualización resultados de grupos
   resultadosGruposStats = signal<ResultadoGruposStats | null>(null);
   resultadosGruposDetalle = signal<ResultadoGrupoDetalle[]>([]);
   loadingResultadosGrupos = signal(false);
+
+  // Botín
+  botines = signal<Botin[]>([]);
+  loadingBotin = signal(false);
+  editMontos = signal<Record<number, number>>({});
+  savingBotin = signal<Record<number, boolean>>({});
+  saveMsgs = signal<Record<number, { type: 'success' | 'error'; text: string }>>({});
 
   // General
   loading = signal(false);
@@ -80,11 +91,16 @@ export class AdminResultados {
 
   adminTerceroCount = computed(() => Object.keys(this.adminSelectedTerceros()).length);
 
+  adminPrimeroCount = computed(() => Object.keys(this.adminSelectedPrimeros()).length);
+
   canSubmitGrupos = computed(() => {
     const groups = this.adminGrupoNames();
     if (groups.length === 0) return false;
     for (const g of groups) {
       if ((this.adminSelectedClasificados()[g] ?? []).length !== 2) return false;
+      const primero = this.adminSelectedPrimeros()[g];
+      if (primero === undefined) return false;
+      if (!(this.adminSelectedClasificados()[g] ?? []).includes(primero)) return false;
     }
     return this.adminTerceroCount() === 8;
   });
@@ -114,6 +130,7 @@ export class AdminResultados {
     this.loadPartidos();
     this.loadResultadosGrupos();
     this.loadResultadosPartidos();
+    this.loadBotin();
   }
 
   // ---- Partidos ----
@@ -198,17 +215,27 @@ export class AdminResultados {
   private preselectFromDetalle(detalle: ResultadoGrupoDetalle[]): void {
     const clasificados: Record<string, number[]> = {};
     const terceros: Record<string, number> = {};
+    const primeros: Record<string, number> = {};
+
     for (const item of detalle) {
       const g = item.Grupo;
-      if (item.EsMejorTercero) {
+      if (item.EsPrimerLugar) {
+        primeros[g] = item.IdEquipo;
+        if (!clasificados[g]) clasificados[g] = [];
+        if (!clasificados[g].includes(item.IdEquipo)) {
+          clasificados[g].push(item.IdEquipo);
+        }
+      } else if (item.EsMejorTercero) {
         terceros[g] = item.IdEquipo;
       } else {
         if (!clasificados[g]) clasificados[g] = [];
         clasificados[g].push(item.IdEquipo);
       }
     }
+
     this.adminSelectedClasificados.set(clasificados);
     this.adminSelectedTerceros.set(terceros);
+    this.adminSelectedPrimeros.set(primeros);
   }
 
   isAdminClasificado(group: string, teamId: number): boolean {
@@ -225,6 +252,11 @@ export class AdminResultados {
     const idx = selected.indexOf(teamId);
     if (idx >= 0) {
       selected.splice(idx, 1);
+      const primeros = { ...this.adminSelectedPrimeros() };
+      if (primeros[group] === teamId) {
+        delete primeros[group];
+        this.adminSelectedPrimeros.set(primeros);
+      }
     } else {
       if (selected.length >= 2) return;
       selected.push(teamId);
@@ -251,6 +283,27 @@ export class AdminResultados {
     return this.adminTerceroCount() < 8;
   }
 
+  isAdminPrimero(group: string, teamId: number): boolean {
+    return this.adminSelectedPrimeros()[group] === teamId;
+  }
+
+  canToggleAdminPrimero(group: string, teamId: number): boolean {
+    if (!(this.adminSelectedClasificados()[group] ?? []).includes(teamId)) return false;
+    if (this.adminSelectedTerceros()[group] === teamId) return false;
+    return true;
+  }
+
+  toggleAdminPrimero(group: string, teamId: number): void {
+    if (!this.canToggleAdminPrimero(group, teamId)) return;
+    const current = { ...this.adminSelectedPrimeros() };
+    if (current[group] === teamId) {
+      delete current[group];
+    } else {
+      current[group] = teamId;
+    }
+    this.adminSelectedPrimeros.set(current);
+  }
+
   toggleAdminTercero(group: string, teamId: number): void {
     if (this.isAdminClasificado(group, teamId)) return;
     const current = { ...this.adminSelectedTerceros() };
@@ -266,15 +319,19 @@ export class AdminResultados {
 
   submitResultadosGrupos(): void {
     if (!this.canSubmitGrupos()) return;
-    const resultados: { IdEquipo: number; EsMejorTercero: boolean }[] = [];
+    const resultados: { IdEquipo: number; EsMejorTercero: boolean; EsPrimerLugar: boolean }[] = [];
 
-    for (const ids of Object.values(this.adminSelectedClasificados())) {
+    for (const [group, ids] of Object.entries(this.adminSelectedClasificados())) {
       for (const id of ids) {
-        resultados.push({ IdEquipo: id, EsMejorTercero: false });
+        resultados.push({
+          IdEquipo: id,
+          EsMejorTercero: false,
+          EsPrimerLugar: this.adminSelectedPrimeros()[group] === id,
+        });
       }
     }
     for (const id of Object.values(this.adminSelectedTerceros())) {
-      resultados.push({ IdEquipo: id, EsMejorTercero: true });
+      resultados.push({ IdEquipo: id, EsMejorTercero: true, EsPrimerLugar: false });
     }
 
     this.loading.set(true);
@@ -364,6 +421,66 @@ export class AdminResultados {
         this.notify('error', msg);
       },
     });
+  }
+
+  // ---- Botín ----
+
+  loadBotin(): void {
+    this.loadingBotin.set(true);
+    this.servicio.getBotin().subscribe({
+      next: (r) => {
+        this.loadingBotin.set(false);
+        if (!r.hasError) {
+          this.botines.set(r.data ?? []);
+          const montos: Record<number, number> = {};
+          for (const b of (r.data ?? [])) {
+            montos[b.IdBotin] = b.MontoTotal;
+          }
+          this.editMontos.set(montos);
+        }
+      },
+      error: () => this.loadingBotin.set(false),
+    });
+  }
+
+  setEditMonto(idBotin: number, value: number): void {
+    this.editMontos.set({ ...this.editMontos(), [idBotin]: value });
+  }
+
+  guardarBotin(botin: Botin): void {
+    const monto = this.editMontos()[botin.IdBotin] ?? 0;
+    this.savingBotin.set({ ...this.savingBotin(), [botin.IdBotin]: true });
+    this.saveMsgs.set({ ...this.saveMsgs(), [botin.IdBotin]: { type: 'success', text: '' } });
+
+    this.servicio.actualizarBotin({ IdBotin: botin.IdBotin, MontoTotal: monto }).subscribe({
+      next: (r) => {
+        this.savingBotin.set({ ...this.savingBotin(), [botin.IdBotin]: false });
+        if (r.hasError) {
+          this.saveMsgs.set({ ...this.saveMsgs(), [botin.IdBotin]: {
+            type: 'error',
+            text: r.errors?.[0]?.descripcion ?? 'Error al guardar.',
+          }});
+          return;
+        }
+        const updated = this.botines().map(b =>
+          b.IdBotin === botin.IdBotin ? { ...b, MontoTotal: r.data?.montoTotal ?? monto } : b
+        );
+        this.botines.set(updated);
+        this.saveMsgs.set({ ...this.saveMsgs(), [botin.IdBotin]: {
+          type: 'success',
+          text: r.data?.mensaje ?? 'Guardado correctamente.',
+        }});
+      },
+      error: (httpError: HttpErrorResponse) => {
+        this.savingBotin.set({ ...this.savingBotin(), [botin.IdBotin]: false });
+        const msg = httpError?.error?.errors?.[0]?.descripcion ?? 'Error al conectar con el servidor.';
+        this.saveMsgs.set({ ...this.saveMsgs(), [botin.IdBotin]: { type: 'error', text: msg } });
+      },
+    });
+  }
+
+  formatMonto(value: number): string {
+    return 'L. ' + value.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   // ---- Utils ----

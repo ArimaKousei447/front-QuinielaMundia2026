@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   ApiResponse,
+  Botin,
   Equipo,
   FilaClasificacion,
   Modalidad,
@@ -88,7 +89,7 @@ export class ServiciosQuiniela {
 
   registrarResultadosGrupos(
     idModalidad: number,
-    resultados: { IdEquipo: number; EsMejorTercero: boolean }[]
+    resultados: { IdEquipo: number; EsMejorTercero: boolean; EsPrimerLugar: boolean }[]
   ): Observable<ApiResponse<{ mensaje: string; calificadosCount: number }>> {
     return this.http.post<ApiResponse<{ mensaje: string; calificadosCount: number }>>(
       `${this.baseUrl}/registrarResultadosGrupos`,
@@ -117,5 +118,16 @@ export class ServiciosQuiniela {
 
   consolidarPuntos(): Observable<ApiResponse<{ mensaje: string }>> {
     return this.http.post<ApiResponse<{ mensaje: string }>>(`${this.baseUrl}/consolidarPuntos`, {});
+  }
+
+  getBotin(): Observable<ApiResponse<Botin[]>> {
+    return this.http.get<ApiResponse<Botin[]>>(`${this.baseUrl}/getBotin`);
+  }
+
+  actualizarBotin(payload: { IdBotin: number; MontoTotal: number }): Observable<ApiResponse<{ mensaje: string; montoTotal: number }>> {
+    return this.http.post<ApiResponse<{ mensaje: string; montoTotal: number }>>(
+      `${this.baseUrl}/actualizarBotin`,
+      payload
+    );
   }
 }

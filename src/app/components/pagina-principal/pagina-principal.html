@@ -1,18 +1,12 @@
 <div class="page-shell">
-  <div class="page-header">
-    <div>
-      <h1>Quiniela de Clasificados</h1>
-      @if (userName()) {
-        <p class="welcome-text">Bienvenido, {{ userName() }}.</p>
-      }
-    </div>
-    <div class="header-actions">
-      @if (userRole() === 2) {
-        <button type="button" class="admin-button" (click)="goAdmin()">Panel Admin</button>
-      }
-      <button type="button" class="logout-button" (click)="logout()">Cerrar sesión</button>
-    </div>
-  </div>
+  <app-header
+    [userName]="userName()"
+    [userRole]="userRole()"
+    [botinLabel]="botinPrincipal() ? 'Botín: ' + formatMonto(botinPrincipal()!.MontoTotal) : null"
+    [showAdminBtn]="userRole() === 2"
+    (logoutClick)="logout()"
+    (adminClick)="goAdmin()"
+  />
 
   @if (notification()) {
     <div class="notification-container">
@@ -31,6 +25,7 @@
     <button [class.active]="activeTab() === 'mis4'" (click)="activeTab.set('mis4')">Mis 4 Selecciones</button>
     <button [class.active]="activeTab() === 'clasificacion'" (click)="activeTab.set('clasificacion')">Tabla de Clasificaciones</button>
     <button [class.active]="activeTab() === 'misPredicciones'" (click)="activeTab.set('misPredicciones')">Mis Predicciones</button>
+    <button [class.active]="activeTab() === 'botin'" (click)="activeTab.set('botin')">Botín</button>
   </nav>
 
   <!-- Pestaña: Predicción por Fases -->
@@ -63,10 +58,13 @@
               <div class="group-header">
                 <div>
                   <h2>Grupo: {{ group }}</h2>
-                  <p class="group-subtitle">Selecciona 2 clasificados y 1 mejor tercero por grupo</p>
+                  <p class="group-subtitle">Selecciona 2 clasificados, marca el 1° entre ellos y 1 mejor tercero</p>
                 </div>
                 <div class="group-meta">
                   <span class="group-count">{{ selectedCount(group) }}/2 clasificados</span>
+                  @if (groupHasFirst(group)) {
+                    <span class="first-selected">★ 1° seleccionado</span>
+                  }
                   @if (groupHasThird(group)) {
                     <span class="third-selected">3º seleccionado</span>
                   }
@@ -104,6 +102,23 @@
                         <span>Marcar 3º</span>
                       }
                     </span>
+                    @if (isSelected(group, equipo.IdEquipo)) {
+                      <span
+                        class="first-toggle"
+                        role="button"
+                        tabindex="0"
+                        [class.selected]="isFirstSelected(equipo.IdEquipo)"
+                        [class.disabled]="!canToggleFirst(group, equipo.IdEquipo)"
+                        [attr.aria-disabled]="!canToggleFirst(group, equipo.IdEquipo)"
+                        (click)="$event.stopPropagation(); toggleFirst(group, equipo.IdEquipo)"
+                      >
+                        @if (isFirstSelected(equipo.IdEquipo)) {
+                          <span>★ 1°</span>
+                        } @else {
+                          <span>Marcar 1°</span>
+                        }
+                      </span>
+                    }
                   </button>
                 }
               </div>
@@ -111,7 +126,10 @@
           }
 
           <div class="actions">
-            <div class="thirds-counter">Mejores terceros: {{ thirdCount() }}/8</div>
+            <div class="counters-row">
+              <div class="thirds-counter">Mejores terceros: {{ thirdCount() }}/8</div>
+              <div class="firsts-counter">Primeros: {{ firstCount() }}/{{ groupNames().length }}</div>
+            </div>
             <button type="button" (click)="sendFasePredicciones()" [disabled]="!canSendFase() || sending() || modalidadIsClosed(selectedModalidadId())">
               @if (sending()) {
                 <span>Enviando...</span>
@@ -315,12 +333,15 @@
                 </div>
                 <div class="pred-group-items">
                   @for (e of group.items; track e.IdPrediccion) {
-                    <div class="pred-team-row" [class.tercero]="e.EsMejorTercero">
+                    <div class="pred-team-row" [class.tercero]="e.EsMejorTercero" [class.primero]="e.EsPrimerLugar">
                       <img class="pred-flag" [src]="getFlagUrl(e.CodigoISO)" [alt]="e.NombreEquipo" />
                       <span class="pred-team-name">{{ e.NombreEquipo }}</span>
                       <div class="pred-badges">
                         @if (e.Grupo) {
                           <span class="pred-grupo">Grupo {{ e.Grupo }}</span>
+                        }
+                        @if (e.EsPrimerLugar) {
+                          <span class="pred-primero">★ 1°</span>
                         }
                         @if (e.EsMejorTercero) {
                           <span class="pred-tercero">Mejor 3°</span>
@@ -379,6 +400,15 @@
       }
     </section>
   }
+
+  <!-- Pestaña: Botín -->
+  @if (activeTab() === 'botin') {
+    <section class="tab-content">
+      <app-botin />
+    </section>
+  }
+
+  <app-footer />
 </div>
 
 <!-- Modal de predicciones de usuario -->
@@ -426,12 +456,15 @@
                 @if (isFechaCerrada(group.fechaDeCierre)) {
                   <div class="pred-group-items">
                     @for (e of group.items; track e.IdPrediccion) {
-                      <div class="pred-team-row" [class.tercero]="e.EsMejorTercero">
+                      <div class="pred-team-row" [class.tercero]="e.EsMejorTercero" [class.primero]="e.EsPrimerLugar">
                         <img class="pred-flag" [src]="getFlagUrl(e.CodigoISO)" [alt]="e.NombreEquipo" />
                         <span class="pred-team-name">{{ e.NombreEquipo }}</span>
                         <div class="pred-badges">
                           @if (e.Grupo) {
                             <span class="pred-grupo">Grupo {{ e.Grupo }}</span>
+                          }
+                          @if (e.EsPrimerLugar) {
+                            <span class="pred-primero">★ 1°</span>
                           }
                           @if (e.EsMejorTercero) {
                             <span class="pred-tercero">Mejor 3°</span>
